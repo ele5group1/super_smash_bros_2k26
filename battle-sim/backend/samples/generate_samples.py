@@ -30,9 +30,9 @@ with open(samples_dir / "scenario.json", "w", encoding="utf-8") as f:
 
 # 2. creatures.json & creatures.csv (valid)
 creatures = [
-    Creature(id="sample_mario", name="Mario Striker", type="fire", hp=150, attack=52, speed=60, moves=["fireball", "super_jump"]),
-    Creature(id="sample_pikachu", name="Pikachu Spark", type="electric", hp=120, attack=54, speed=85, moves=["thunderbolt", "quick_attack"]),
     Creature(id="sample_puff_bird", name="Puff Bird", type="electric", hp=125, attack=42, speed=68, moves=["spark_zap", "charge_dash"]),
+    Creature(id="sample_vine_sprout", name="Vine Sprout", type="grass", hp=135, attack=36, speed=45, moves=["vine_whip", "spore_heal"]),
+    Creature(id="sample_magma_slug", name="Magma Slug", type="fire", hp=155, attack=48, speed=32, moves=["flame_spit", "fire_shield"]),
 ]
 with open(samples_dir / "creatures.json", "w", encoding="utf-8") as f:
     f.write(export_creatures_json(creatures))
@@ -41,7 +41,7 @@ with open(samples_dir / "creatures.csv", "w", encoding="utf-8", newline="") as f
     f.write(export_creatures_csv(creatures))
 
 # 3. battles.json matching engine output for seed 1000
-p_team = [db.get_creature("mario"), db.get_creature("pikachu")]
+p_team = [db.get_creature("ember_fox"), db.get_creature("bubble_toad")]
 e_team = [db.get_creature(cid) for cid in scen.enemy_team]
 engine = TickEngine(scen, p_team, e_team, seed=1000)
 sample_battle = engine.run()

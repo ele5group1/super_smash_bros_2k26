@@ -17,7 +17,7 @@ from app.uploads.parsers import parse_csv_content, parse_json_content
 
 MAX_ERRORS = 100
 VALID_CREATURE_TYPES = {"fire", "water", "grass", "electric", "stone"}
-VALID_EVENT_TYPES = {"hazard", "move", "status", "pickup", "death", "objective", "info", "block"}
+VALID_EVENT_TYPES = {"hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision"}
 VALID_TILE_TYPES = {"normal", "pipe", "question_block", "hazard_zone", "exit", "lava", "coin_cache"}
 VALID_OBJECTIVE_TYPES = {"reach_exit", "defeat_all", "collect_coins", "survive_ticks"}
 
@@ -458,14 +458,32 @@ def validate_battles_bundle(
             if etype not in VALID_EVENT_TYPES:
                 errors.append(f"{ev_fname} line {line}: unknown event_type '{etype}'")
 
+            lane_str = row.get("lane", "0").strip()
+            tile_str = row.get("tile", "0").strip()
+            cb_str = row.get("coin_before", "").strip()
+            ca_str = row.get("coin_after", "").strip()
+            chosen_act = row.get("chosen_action", "").strip() or None
+            opts_str = row.get("options_considered", "").strip()
+
+            opts_considered = None
+            if opts_str:
+                try:
+                    opts_considered = json.loads(opts_str)
+                except Exception:
+                    opts_considered = None
+
             try:
                 tick = int(tick_str)
                 damage = int(dmg_str) if dmg_str else 0
                 hp_after = int(hp_str) if hp_str else 0
                 coin_change = int(coin_str) if coin_str else 0
+                lane = int(lane_str) if lane_str else 0
+                tile = int(tile_str) if tile_str else 0
+                coin_before = int(cb_str) if cb_str else 0
+                coin_after = int(ca_str) if ca_str else (coin_before + coin_change)
             except ValueError as e:
                 errors.append(f"{ev_fname} line {line}: numeric parse error: {str(e)}")
-                tick, damage, hp_after, coin_change = 1, 0, 0, 0
+                tick, damage, hp_after, coin_change, lane, tile, coin_before, coin_after = 1, 0, 0, 0, 0, 0, 0, 0
 
             # Tick monotonicity check within battle
             if bid in battle_last_tick and tick < battle_last_tick[bid]:
@@ -484,6 +502,11 @@ def validate_battles_bundle(
                         hp_after=hp_after,
                         coin_change=coin_change,
                         event_type=etype,
+                        position={"lane": lane, "tile": tile},
+                        coin_before=coin_before,
+                        coin_after=coin_after,
+                        options_considered=opts_considered,
+                        chosen_action=chosen_act,
                     )
                 )
 

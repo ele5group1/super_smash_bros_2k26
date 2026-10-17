@@ -1,0 +1,704 @@
+{
+  "heroes_directory": [
+    {
+      "id": "ember_fox",
+      "name": "Ember Fox",
+      "type": "fire",
+      "hp": 120,
+      "attack": 45,
+      "speed": 65,
+      "moves": [
+        "flame_spit",
+        "ember_burst",
+        "fire_shield"
+      ],
+      "moves_detail": [
+        {
+          "id": "flame_spit",
+          "name": "Flame Spit",
+          "type": "fire",
+          "power": 25,
+          "accuracy": 0.95,
+          "cost_coins": 0,
+          "target_type": "single_enemy",
+          "effect": "burn",
+          "effect_chance": 0.25
+        },
+        {
+          "id": "ember_burst",
+          "name": "Ember Burst",
+          "type": "fire",
+          "power": 40,
+          "accuracy": 0.85,
+          "cost_coins": 2,
+          "target_type": "single_enemy",
+          "effect": null,
+          "effect_chance": 0.0
+        },
+        {
+          "id": "fire_shield",
+          "name": "Fire Shield",
+          "type": "fire",
+          "power": 0,
+          "accuracy": 1.0,
+          "cost_coins": 1,
+          "target_type": "self",
+          "effect": "shield",
+          "effect_chance": 1.0
+        }
+      ],
+      "avatar": "fox",
+      "role": "Burst Striker",
+      "description": "Agile flame fox capable of blazing burst damage and personal flame shielding."
+    },
+    {
+      "id": "flame_salamander",
+      "name": "Flame Salamander",
+      "type": "fire",
+      "hp": 160,
+      "attack": 52,
+      "speed": 45,
+      "moves": [
+        "flame_spit",
+        "ember_burst"
+      ],
+      "moves_detail": [
+        {
+          "id": "flame_spit",
+          "name": "Flame Spit",
+          "type": "fire",
+          "power": 25,
+          "accuracy": 0.95,
+          "cost_coins": 0,
+          "target_type": "single_enemy",
+          "effect": "burn",
+          "effect_chance": 0.25
+        },
+        {
+          "id": "ember_burst",
+          "name": "Ember Burst",
+          "type": "fire",
+          "power": 40,
+          "accuracy": 0.85,
+          "cost_coins": 2,
+          "target_type": "single_enemy",
+          "effect": null,
+          "effect_chance": 0.0
+        }
+      ],
+      "avatar": "salamander",
+      "role": "Fire Bruiser",
+      "description": "Durable amphibious salamander wielding potent flame breath and high baseline attack."
+    },
+    {
+      "id": "bubble_toad",
+      "name": "Bubble Toad",
+      "type": "water",
+      "hp": 140,
+      "attack": 38,
+      "speed": 50,
+      "moves": [
+        "spout_splash",
+        "bubble_barrier",
+        "tidal_surge"
+      ],
+      "moves_detail": [
+        {
+          "id": "spout_splash",
+          "name": "Spout Splash",
+          "type": "water",
+          "power": 24,
+          "accuracy": 0.95,
+          "cost_coins": 0,
+          "target_type": "single_enemy",
+          "effect": null,
+          "effect_chance": 0.0
+        },
+        {
+          "id": "bubble_barrier",
+          "name": "Bubble Barrier",
+          "type": "water",
+          "power": 0,
+          "accuracy": 1.0,
+          "cost_coins": 0,
+          "target_type": "self",
+          "effect": "shield",
+          "effect_chance": 1.0
+        },
+        {
+          "id": "tidal_surge",
+          "name": "Tidal Surge",
+          "type": "water",
+          "power": 42,
+          "accuracy": 0.85,
+          "cost_coins": 2,
+          "target_type": "single_enemy",
+          "effect": null,
+          "effect_chance": 0.0
+        }
+      ],
+      "avatar": "toad",
+      "role": "Tactical Defender",
+      "description": "Support creature specializing in bubble barriers and tide disruption."
+    },
+    {
+      "id": "stream_turtle",
+      "name": "Stream Turtle",
+      "type": "water",
+      "hp": 180,
+      "attack": 35,
+      "speed": 30,
+      "moves": [
+        "spout_splash",
+        "bubble_barrier"
+      ],
+      "moves_detail": [
+        {
+          "id": "spout_splash",
+          "name": "Spout Splash",
+          "type": "water",
+          "power": 24,
+          "accuracy": 0.95,
+          "cost_coins": 0,
+          "target_type": "single_enemy",
+          "effect": null,
+          "effect_chance": 0.0
+        },
+        {
+          "id": "bubble_barrier",
+          "name": "Bubble Barrier",
+          "type": "water",
+          "power": 0,
+          "accuracy": 1.0,
+          "cost_coins": 0,
+          "target_type": "self",
+          "effect": "shield",
+          "effect_chance": 1.0
+        }
+      ],
+      "avatar": "turtle",
+      "role": "Tank & Sponge",
+      "description": "High-HP aquatic defender built to absorb enemy assaults and secure lane control."
+    }
+  ],
+  "sample_battle_id": "2d39830e-f6b7-4ef5-816f-0dc1726418c9",
+  "descriptive": {
+    "summary": {
+      "battle_id": "2d39830e-f6b7-4ef5-816f-0dc1726418c9",
+      "scenario_id": "pipe_ambush",
+      "outcome": "loss",
+      "ticks_elapsed": 5,
+      "survivors": 0,
+      "coins_left": 8,
+      "objective_status": "Objective Incomplete: Team suffered defeat after 5 ticks with 0 survivor(s).",
+      "summary_sentence": "Team fell in defeat at tick 5 with 8 coins remaining."
+    },
+    "creatures": [
+      {
+        "id": "ember_fox",
+        "name": null,
+        "damage_dealt": 180,
+        "damage_taken": 151,
+        "kos": 1,
+        "ticks_spent_in_hazard_zones": 0,
+        "status_effects_applied": 0,
+        "survival": false,
+        "final_hp": 0
+      },
+      {
+        "id": "bubble_toad",
+        "name": null,
+        "damage_dealt": 316,
+        "damage_taken": 154,
+        "kos": 1,
+        "ticks_spent_in_hazard_zones": 1,
+        "status_effects_applied": 0,
+        "survival": false,
+        "final_hp": 0
+      }
+    ],
+    "timeline": {
+      "battle_id": "2d39830e-f6b7-4ef5-816f-0dc1726418c9",
+      "ticks": [
+        {
+          "tick": 1,
+          "coins": 14,
+          "creatures": {
+            "ember_fox": 17,
+            "bubble_toad": 86
+          },
+          "hazard_events": [],
+          "ko_events": [],
+          "key_events": []
+        },
+        {
+          "tick": 2,
+          "coins": 12,
+          "creatures": {
+            "ember_fox": 0,
+            "bubble_toad": 59
+          },
+          "hazard_events": [],
+          "ko_events": [
+            "thorn_biter",
+            "ember_fox",
+            "ember_fox",
+            "thorn_biter"
+          ],
+          "key_events": [
+            "KO: thorn_biter",
+            "KO: ember_fox",
+            "KO: ember_fox",
+            "KO: thorn_biter"
+          ]
+        },
+        {
+          "tick": 3,
+          "coins": 8,
+          "creatures": {
+            "ember_fox": 0,
+            "bubble_toad": 8
+          },
+          "hazard_events": [],
+          "ko_events": [],
+          "key_events": []
+        },
+        {
+          "tick": 4,
+          "coins": 8,
+          "creatures": {
+            "ember_fox": 0,
+            "bubble_toad": 8
+          },
+          "hazard_events": [],
+          "ko_events": [
+            "pyro_tyrant",
+            "pyro_tyrant"
+          ],
+          "key_events": [
+            "KO: pyro_tyrant",
+            "KO: pyro_tyrant"
+          ]
+        },
+        {
+          "tick": 5,
+          "coins": 8,
+          "creatures": {
+            "ember_fox": 0,
+            "bubble_toad": 0
+          },
+          "hazard_events": [
+            "biter_plant"
+          ],
+          "ko_events": [
+            "bubble_toad"
+          ],
+          "key_events": [
+            "Hazard: biter_plant",
+            "KO: bubble_toad"
+          ]
+        }
+      ]
+    },
+    "heatmap": {
+      "lanes": 3,
+      "tiles": 8,
+      "grid": [
+        [
+          {
+            "lane": 0,
+            "tile": 0,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 90
+          },
+          {
+            "lane": 0,
+            "tile": 1,
+            "time_spent": 2,
+            "kos": 1,
+            "damage": 90
+          },
+          {
+            "lane": 0,
+            "tile": 2,
+            "time_spent": 1,
+            "kos": 1,
+            "damage": 0
+          },
+          {
+            "lane": 0,
+            "tile": 3,
+            "time_spent": 0,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 0,
+            "tile": 4,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 0,
+            "tile": 5,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 24
+          },
+          {
+            "lane": 0,
+            "tile": 6,
+            "time_spent": 2,
+            "kos": 1,
+            "damage": 48
+          },
+          {
+            "lane": 0,
+            "tile": 7,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 48
+          }
+        ],
+        [
+          {
+            "lane": 1,
+            "tile": 0,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 79
+          },
+          {
+            "lane": 1,
+            "tile": 1,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 79
+          },
+          {
+            "lane": 1,
+            "tile": 2,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 79
+          },
+          {
+            "lane": 1,
+            "tile": 3,
+            "time_spent": 2,
+            "kos": 1,
+            "damage": 79
+          },
+          {
+            "lane": 1,
+            "tile": 4,
+            "time_spent": 1,
+            "kos": 1,
+            "damage": 22
+          },
+          {
+            "lane": 1,
+            "tile": 5,
+            "time_spent": 0,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 1,
+            "tile": 6,
+            "time_spent": 1,
+            "kos": 1,
+            "damage": 0
+          },
+          {
+            "lane": 1,
+            "tile": 7,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 54
+          }
+        ],
+        [
+          {
+            "lane": 2,
+            "tile": 0,
+            "time_spent": 0,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 2,
+            "tile": 1,
+            "time_spent": 0,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 2,
+            "tile": 2,
+            "time_spent": 0,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 2,
+            "tile": 3,
+            "time_spent": 0,
+            "kos": 0,
+            "damage": 0
+          },
+          {
+            "lane": 2,
+            "tile": 4,
+            "time_spent": 1,
+            "kos": 1,
+            "damage": 0
+          },
+          {
+            "lane": 2,
+            "tile": 5,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 27
+          },
+          {
+            "lane": 2,
+            "tile": 6,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 27
+          },
+          {
+            "lane": 2,
+            "tile": 7,
+            "time_spent": 2,
+            "kos": 0,
+            "damage": 55
+          }
+        ]
+      ],
+      "hottest_cells": [
+        {
+          "lane": 0,
+          "tile": 1,
+          "score": 140,
+          "damage": 90,
+          "kos": 1
+        },
+        {
+          "lane": 1,
+          "tile": 3,
+          "score": 129,
+          "damage": 79,
+          "kos": 1
+        },
+        {
+          "lane": 0,
+          "tile": 6,
+          "score": 98,
+          "damage": 48,
+          "kos": 1
+        }
+      ],
+      "text_summary": "Combat intensity peaked at Lane 0, Tile 1 (90 dmg, 1 KOs), Lane 1, Tile 3 (79 dmg, 1 KOs), Lane 0, Tile 6 (48 dmg, 1 KOs)."
+    }
+  },
+  "diagnostic": {
+    "cause_trace": {
+      "battle_id": "2d39830e-f6b7-4ef5-816f-0dc1726418c9",
+      "is_defeat": true,
+      "earliest_pivotal_tick": 2,
+      "root_cause": "hazard_vulnerability",
+      "explanation": "Pivotal loss caused by fatal hazard exposure: bubble_toad was devastated by biter_plant at tick 5.",
+      "events": [
+        {
+          "tick": 2,
+          "event_id": "ko_2_ember_fox",
+          "category": "casualty",
+          "description": "First allied casualty: ember_fox was knocked out by pipe_lurker at tick 2.",
+          "target": "ember_fox",
+          "damage": null
+        },
+        {
+          "tick": 5,
+          "event_id": "haz_5_bubble_toad",
+          "category": "hazard",
+          "description": "Map hazard 'biter_plant' struck bubble_toad dealing 22 damage.",
+          "target": "bubble_toad",
+          "damage": 22
+        }
+      ]
+    },
+    "decision_audit": {
+      "battle_id": "2d39830e-f6b7-4ef5-816f-0dc1726418c9",
+      "threshold": 0.15,
+      "total_decisions": 14,
+      "flagged_decisions_count": 0,
+      "decisions": []
+    }
+  },
+  "predictive": {
+    "win_rate_prediction": {
+      "scenario_id": "pipe_ambush",
+      "team": [
+        "ember_fox",
+        "bubble_toad"
+      ],
+      "seed_count": 50,
+      "base_seed": 1000,
+      "win_rate": 0.0,
+      "win_rate_percent": 0.0,
+      "confidence_interval_95": 3.57,
+      "confidence_interval_percent": 0.0,
+      "interval_method": "wilson",
+      "ci_lower": 0.0,
+      "ci_upper": 7.1,
+      "survivor_distribution": [
+        50,
+        0,
+        0,
+        0,
+        0
+      ],
+      "survivor_distribution_percent": [
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "avg_coins_left": 8.6,
+      "avg_ticks": 4.1,
+      "calibration": null
+    }
+  },
+  "prescriptive": {
+    "recommendation": {
+      "scenario_id": "pipe_ambush",
+      "team": [
+        "ember_fox",
+        "bubble_toad"
+      ],
+      "top_recommendations": [
+        {
+          "action": "Spend 0 coins (Conserve economy)",
+          "predicted_win_rate": 0.0,
+          "predicted_win_rate_percent": 0.0,
+          "confidence_interval_95": 3.57,
+          "ci_lower": 0.0,
+          "ci_upper": 7.1,
+          "explanation": "Expected 0.0% win rate by hoarding coins for late-stage turn versatility."
+        },
+        {
+          "action": "Spend 5 coins for Emergency Heal",
+          "predicted_win_rate": 0.0,
+          "predicted_win_rate_percent": 0.0,
+          "confidence_interval_95": 3.57,
+          "ci_lower": 0.0,
+          "ci_upper": 7.1,
+          "explanation": "Expected 0.0% win rate by securing critical allied HP thresholds while retaining coin reserves."
+        },
+        {
+          "action": "Spend 10 coins for Tactical Reinforce",
+          "predicted_win_rate": 0.0,
+          "predicted_win_rate_percent": 0.0,
+          "confidence_interval_95": 3.57,
+          "ci_lower": 0.0,
+          "ci_upper": 7.1,
+          "explanation": "Expected 0.0% win rate by securing critical allied HP thresholds while retaining coin reserves."
+        }
+      ],
+      "summary_advice": "Optimal move: 'Spend 0 coins (Conserve economy)' yields the highest projected win rate of 0.0% (\u00b13.57%).",
+      "best_spend": 0,
+      "best_win_rate_percent": 0.0,
+      "explanation": "Optimal move: 'Spend 0 coins (Conserve economy)' yields the highest projected win rate of 0.0% (\u00b13.57%).",
+      "options": [
+        {
+          "spend": 0,
+          "reserve_kept": 20,
+          "win_rate": 0.0,
+          "win_rate_percent": 0.0,
+          "avg_coins_left": 20
+        },
+        {
+          "spend": 5,
+          "reserve_kept": 15,
+          "win_rate": 0.0,
+          "win_rate_percent": 0.0,
+          "avg_coins_left": 15
+        },
+        {
+          "spend": 10,
+          "reserve_kept": 10,
+          "win_rate": 0.0,
+          "win_rate_percent": 0.0,
+          "avg_coins_left": 10
+        }
+      ]
+    }
+  },
+  "balance": {
+    "scenario_id": "pipe_ambush",
+    "scenario_name": "Pipe Ambush",
+    "overall_win_rate_percent": 25.0,
+    "target_band": "25% - 75%",
+    "is_balanced": true,
+    "balance_flag": null,
+    "dominant_strategies_detected": true,
+    "dominant_strategy_notes": [
+      "Team 'Full Squad' outperforms the archetype average by +75.0% (Dominant Strategy)."
+    ],
+    "pacing": {
+      "avg_ticks": 3.5,
+      "max_ticks": 40,
+      "timeout_percent": 0.0,
+      "pacing_rating": "fast"
+    },
+    "teams_evaluated": [
+      {
+        "team_name": "Balanced Duo",
+        "team": [
+          "ember_fox",
+          "bubble_toad"
+        ],
+        "win_rate_percent": 0.0,
+        "avg_ticks": 3.8,
+        "dominant": false
+      },
+      {
+        "team_name": "Heavy Strikers",
+        "team": [
+          "flame_salamander",
+          "crag_golem"
+        ],
+        "win_rate_percent": 0.0,
+        "avg_ticks": 4.2,
+        "dominant": false
+      },
+      {
+        "team_name": "Speed & Sustain",
+        "team": [
+          "volt_hedgehog",
+          "moss_shroom"
+        ],
+        "win_rate_percent": 0.0,
+        "avg_ticks": 3.4,
+        "dominant": false
+      },
+      {
+        "team_name": "Full Squad",
+        "team": [
+          "ember_fox",
+          "bubble_toad",
+          "moss_shroom",
+          "crag_golem"
+        ],
+        "win_rate_percent": 100.0,
+        "avg_ticks": 2.7,
+        "dominant": true
+      }
+    ]
+  }
+}

@@ -1,33 +1,5 @@
 [
   {
-    "id": "sample_mario",
-    "name": "Mario Striker",
-    "type": "fire",
-    "hp": 150,
-    "attack": 52,
-    "speed": 60,
-    "moves": [
-      "fireball",
-      "super_jump"
-    ],
-    "source": "builtin",
-    "avatar": null
-  },
-  {
-    "id": "sample_pikachu",
-    "name": "Pikachu Spark",
-    "type": "electric",
-    "hp": 120,
-    "attack": 54,
-    "speed": 85,
-    "moves": [
-      "thunderbolt",
-      "quick_attack"
-    ],
-    "source": "builtin",
-    "avatar": null
-  },
-  {
     "id": "sample_puff_bird",
     "name": "Puff Bird",
     "type": "electric",
@@ -37,6 +9,34 @@
     "moves": [
       "spark_zap",
       "charge_dash"
+    ],
+    "source": "builtin",
+    "avatar": null
+  },
+  {
+    "id": "sample_vine_sprout",
+    "name": "Vine Sprout",
+    "type": "grass",
+    "hp": 135,
+    "attack": 36,
+    "speed": 45,
+    "moves": [
+      "vine_whip",
+      "spore_heal"
+    ],
+    "source": "builtin",
+    "avatar": null
+  },
+  {
+    "id": "sample_magma_slug",
+    "name": "Magma Slug",
+    "type": "fire",
+    "hp": 155,
+    "attack": 48,
+    "speed": 32,
+    "moves": [
+      "flame_spit",
+      "fire_shield"
     ],
     "source": "builtin",
     "avatar": null

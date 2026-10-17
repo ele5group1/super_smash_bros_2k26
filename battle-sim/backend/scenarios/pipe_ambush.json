@@ -1,7 +1,7 @@
 {
   "id": "pipe_ambush",
-  "name": "Mushroom Kingdom: Pipe Ambush",
-  "description": "Dash through World 1-1 Pipe Plains with Mario and Pokémon companions, dodging Piranha Plants and fire traps to reach the flagpole.",
+  "name": "Pipe Ambush",
+  "description": "Navigate a labyrinth of Warp Pipes in Puffcap Kingdom while avoiding Biter Plants and fire streams.",
   "lanes": 3,
   "ticks": 40,
   "starting_resources": {
@@ -14,9 +14,9 @@
     "target_tick": 40
   },
   "enemy_team": [
-    "goomba",
-    "koopa_troopa",
-    "piranha_plant"
+    "pipe_lurker",
+    "thorn_biter",
+    "pyro_tyrant"
   ],
   "map": [
     { "scenario_id": "pipe_ambush", "lane": 0, "tile_index": 2, "tile_type": "pipe" },
@@ -31,10 +31,10 @@
     { "scenario_id": "pipe_ambush", "lane": 2, "tile_index": 7, "tile_type": "exit" }
   ],
   "hazard_schedule": [
-    { "scenario_id": "pipe_ambush", "tick": 5, "type": "piranha_plant", "lane": 1, "params": { "damage": 22 } },
+    { "scenario_id": "pipe_ambush", "tick": 5, "type": "biter_plant", "lane": 1, "params": { "damage": 22 } },
     { "scenario_id": "pipe_ambush", "tick": 12, "type": "fire_stream", "lane": 2, "params": { "damage": 30, "burn": true } },
-    { "scenario_id": "pipe_ambush", "tick": 18, "type": "piranha_plant", "lane": 0, "params": { "damage": 25 } },
+    { "scenario_id": "pipe_ambush", "tick": 18, "type": "biter_plant", "lane": 0, "params": { "damage": 25 } },
     { "scenario_id": "pipe_ambush", "tick": 25, "type": "fire_stream", "lane": 1, "params": { "damage": 32, "burn": true } },
-    { "scenario_id": "pipe_ambush", "tick": 32, "type": "piranha_plant", "lane": 2, "params": { "damage": 28 } }
+    { "scenario_id": "pipe_ambush", "tick": 32, "type": "biter_plant", "lane": 2, "params": { "damage": 28 } }
   ]
 }

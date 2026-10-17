@@ -181,14 +181,20 @@ class Event(BaseModel):
     damage: int = 0
     hp_before: int = 0
     hp_after: int = 0
+    position: Dict[str, int] = Field(default_factory=lambda: {"lane": 0, "tile": 0})
     status_change: Optional[str] = None
     hazard_hit: Optional[str] = None
     pickup: Optional[str] = None
     ko: bool = False
+    coin_before: int = 0
+    coin_after: int = 0
     coin_change: int = 0
     event_type: Literal[
-        "hazard", "move", "status", "pickup", "death", "objective", "info", "block"
+        "hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision"
     ] = "info"
+    options_considered: Optional[List[Dict[str, Any]]] = None
+    chosen_action: Optional[str] = None
+
 
 
 class BattleRecord(BaseModel):

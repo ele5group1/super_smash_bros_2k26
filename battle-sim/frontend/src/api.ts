@@ -24,6 +24,32 @@ export interface Creature {
   avatar?: string | null;
 }
 
+export interface HeroMove {
+  id: string;
+  name: string;
+  type: string;
+  power: number;
+  accuracy: number;
+  cost_coins: number;
+  target_type: string;
+  effect?: string | null;
+  effect_chance: number;
+}
+
+export interface Hero {
+  id: string;
+  name: string;
+  type: "fire" | "water" | "grass" | "electric" | "stone";
+  hp: number;
+  attack: number;
+  speed: number;
+  moves: string[];
+  moves_detail?: HeroMove[];
+  avatar?: string | null;
+  role: string;
+  description: string;
+}
+
 export interface MapTile {
   scenario_id?: string;
   lane: number;
@@ -76,6 +102,9 @@ export interface EventLog {
   coin_change: number;
   event_type: "hazard" | "move" | "status" | "pickup" | "death" | "objective" | "info" | "block";
 }
+
+export type BattleEvent = EventLog;
+export type ScenarioSummary = Scenario;
 
 export interface BattleRecord {
   battle_id: string;
@@ -200,6 +229,9 @@ export const api = {
   checkHealth: () => request<{ status: string }>("/health"),
 
   getScenarios: (source?: string) =>
+    request<Scenario[]>(`/scenarios${source ? `?source=${source}` : ""}`),
+
+  listScenarios: (source?: string) =>
     request<Scenario[]>(`/scenarios${source ? `?source=${source}` : ""}`),
 
   getScenario: (id: string) => request<Scenario>(`/scenarios/${id}`),
@@ -344,6 +376,40 @@ export const api = {
     request<{ id: string; deleted: boolean; message: string }>(`/uploads/${id}`, {
       method: "DELETE",
     }),
+
+  getHeroes: () => request<Hero[]>("/heroes"),
+
+  // Analytics endpoints
+  getBattleSummary: (id: string) => request<any>(`/battles/${id}/analytics/summary`),
+  getBattleCreatures: (id: string) => request<any>(`/battles/${id}/analytics/creatures`),
+  getBattleTimeline: (id: string) => request<any>(`/battles/${id}/analytics/timeline`),
+  getBattleHeatmap: (id: string) => request<any>(`/battles/${id}/analytics/heatmap`),
+  getBattleCauseTrace: (id: string) => request<any>(`/battles/${id}/analytics/cause-trace`),
+  getBattleDecisions: (id: string, threshold: number = 0.05) =>
+    request<any>(`/battles/${id}/analytics/decisions?threshold=${threshold}`),
+  runCounterfactual: (id: string, tick: number, newAction: string) =>
+    request<any>(`/battles/${id}/counterfactual`, {
+      method: "POST",
+      body: JSON.stringify({ tick, new_action: newAction }),
+    }),
+  getTeamStats: (scenarioId?: string, source?: string) => {
+    const params = new URLSearchParams();
+    if (scenarioId) params.append("scenario_id", scenarioId);
+    if (source) params.append("source", source);
+    return request<any[]>(`/analytics/team-stats?${params.toString()}`);
+  },
+  getLossCauses: (scenarioId?: string, source?: string) => {
+    const params = new URLSearchParams();
+    if (scenarioId) params.append("scenario_id", scenarioId);
+    if (source) params.append("source", source);
+    return request<any[]>(`/analytics/loss-causes?${params.toString()}`);
+  },
+  getSensitivitySweep: (scenarioId: string, param: string = "enemy_hp_multiplier") =>
+    request<any>(`/author/scenarios/${scenarioId}/sensitivity`, {
+      method: "POST",
+      body: JSON.stringify({ parameter: param, min_val: 0.5, max_val: 1.5, steps: 5 }),
+    }),
+  getJobStatus: (jobId: string) => request<any>(`/jobs/${jobId}`),
 
   uploadFile: async (file: File, kind: string, uploadGroup?: string): Promise<UploadRecord> => {
     const formData = new FormData();

@@ -1,132 +1,301 @@
-"""Descriptive analytics: summaries, creature statistics, timelines, and heatmaps."""
+"""Descriptive analytics: summaries, creature statistics, timelines, and position heatmaps.
 
-from typing import Dict, List, Any
-from app.engine.models import BattleRecord
+Each calculation function is pure: it takes event logs or BattleRecords and returns Pydantic models,
+with no database access inside the calculation.
+"""
+
+from typing import Dict, List, Any, Union
+from collections import defaultdict
+
+from app.engine.models import BattleRecord, Event
+from .models import (
+    BattleSummaryModel,
+    CreatureStatsModel,
+    TeamStatsModel,
+    HPTimelinePointModel,
+    HPTimelineModel,
+    PositionHeatmapCellModel,
+    PositionHeatmapModel,
+)
 
 
-def compute_battle_descriptive_stats(battle: BattleRecord) -> Dict[str, Any]:
-    """Computes descriptive analytics for a single battle."""
-    creatures_stats: Dict[str, Dict[str, Any]] = {}
-    for p in battle.player_team:
-        creatures_stats[p] = {
-            "id": p,
+def battle_summary(battle: BattleRecord) -> BattleSummaryModel:
+    """Computes headline outcome, elapsed ticks, survivors, coins, and objective status."""
+    is_win = battle.outcome == "win"
+    objective_status = (
+        "Objective Achieved: Target condition fulfilled."
+        if is_win
+        else f"Objective Incomplete: Team suffered defeat after {battle.ticks_elapsed} ticks with {battle.survivors} survivor(s)."
+    )
+
+    summary_sentence = (
+        f"Team secured a decisive victory in {battle.ticks_elapsed} ticks with "
+        f"{battle.survivors} creature(s) standing and {battle.coins_left} coins preserved."
+        if is_win
+        else f"Team fell in defeat at tick {battle.ticks_elapsed} with {battle.coins_left} coins remaining."
+    )
+
+    return BattleSummaryModel(
+        battle_id=battle.battle_id,
+        scenario_id=battle.scenario_id,
+        outcome=battle.outcome,
+        ticks_elapsed=battle.ticks_elapsed,
+        survivors=battle.survivors,
+        coins_left=battle.coins_left,
+        objective_status=objective_status,
+        summary_sentence=summary_sentence,
+    )
+
+
+def creature_stats(battle: BattleRecord) -> List[CreatureStatsModel]:
+    """Computes individual performance statistics per creature from the event log."""
+    stats_map: Dict[str, Dict[str, Any]] = {}
+    for cid in battle.player_team:
+        stats_map[cid] = {
+            "id": cid,
             "damage_dealt": 0,
             "damage_taken": 0,
             "kos": 0,
-            "survived": True,
-            "hazard_ticks": 0,
+            "ticks_spent_in_hazard_zones": 0,
+            "status_effects_applied": 0,
+            "survival": True,
             "final_hp": 0,
         }
 
-    # Track HP timeline per creature and coins timeline
-    hp_timeline: List[Dict[str, Any]] = []
-    current_hps = {p: 100 for p in battle.player_team}  # Will update from events
-    current_coins = 20
+    # Set of player team members
+    player_set = set(battle.player_team)
 
-    # Initialize first tick snapshot
     for ev in battle.events:
-        if ev.actor in creatures_stats and ev.event_type == "move":
-            creatures_stats[ev.actor]["damage_dealt"] += max(0, ev.damage)
+        # Damage dealt and KOs by player creatures
+        if ev.actor in stats_map and ev.event_type == "move":
+            stats_map[ev.actor]["damage_dealt"] += max(0, ev.damage)
             if ev.ko:
-                creatures_stats[ev.actor]["kos"] += 1
+                stats_map[ev.actor]["kos"] += 1
+            if ev.status_change and ev.status_change in ("burn", "stun"):
+                stats_map[ev.actor]["status_effects_applied"] += 1
 
-        if ev.target in creatures_stats:
+        # Damage taken and survival by player creatures
+        if ev.target in stats_map:
             if ev.damage > 0:
-                creatures_stats[ev.target]["damage_taken"] += ev.damage
-            current_hps[ev.target] = ev.hp_after
+                stats_map[ev.target]["damage_taken"] += ev.damage
+            stats_map[ev.target]["final_hp"] = ev.hp_after
             if ev.ko:
-                creatures_stats[ev.target]["survived"] = False
-                creatures_stats[ev.target]["final_hp"] = 0
-            else:
-                creatures_stats[ev.target]["final_hp"] = ev.hp_after
+                stats_map[ev.target]["survival"] = False
+                stats_map[ev.target]["final_hp"] = 0
 
-        if ev.hazard_hit and ev.target in creatures_stats:
-            creatures_stats[ev.target]["hazard_ticks"] += 1
+        # Hazard interactions
+        if ev.hazard_hit and ev.target in stats_map:
+            stats_map[ev.target]["ticks_spent_in_hazard_zones"] += 1
 
-        if ev.coin_change != 0:
-            current_coins += ev.coin_change
+    # In case battle finished without explicit KO event for a 0 HP creature
+    if battle.survivors == 0:
+        for cid in stats_map:
+            if not any(ev.target == cid and ev.hp_after > 0 for ev in battle.events[-3:]):
+                stats_map[cid]["survival"] = False
 
-    # Build timeline points per tick
-    ticks_map: Dict[int, Dict[str, Any]] = {}
-    for t in range(1, battle.ticks_elapsed + 1):
-        ticks_map[t] = {
+    return [CreatureStatsModel(**data) for data in stats_map.values()]
+
+
+def team_stats(battles: List[BattleRecord]) -> List[TeamStatsModel]:
+    """Computes win rate, average ticks to victory, survivors, and coins grouped by scenario and team."""
+    if not battles:
+        return []
+
+    # Group by (scenario_id, tuple(sorted(player_team)))
+    grouped: Dict[tuple, List[BattleRecord]] = defaultdict(list)
+    for b in battles:
+        key = (b.scenario_id, tuple(sorted(b.player_team)))
+        grouped[key].append(b)
+
+    results: List[TeamStatsModel] = []
+    for (scen_id, team_tuple), records in grouped.items():
+        total = len(records)
+        wins = [b for b in records if b.outcome == "win"]
+        win_count = len(wins)
+        win_rate = win_count / total
+
+        # Average ticks to victory (for victories only, or overall if no victories)
+        avg_victory_ticks = (
+            sum(w.ticks_elapsed for w in wins) / win_count
+            if win_count > 0
+            else sum(b.ticks_elapsed for b in records) / total
+        )
+        avg_survivors = sum(b.survivors for b in records) / total
+        avg_coins = sum(b.coins_left for b in records) / total
+
+        results.append(
+            TeamStatsModel(
+                scenario_id=scen_id,
+                team=list(team_tuple),
+                sample_count=total,
+                win_rate=round(win_rate, 4),
+                win_rate_percent=round(win_rate * 100, 1),
+                avg_ticks_to_victory=round(avg_victory_ticks, 1),
+                avg_survivors=round(avg_survivors, 2),
+                avg_coins_left=round(avg_coins, 1),
+            )
+        )
+
+    results.sort(key=lambda t: t.win_rate, reverse=True)
+    return results
+
+
+def hp_timeline(battle: BattleRecord) -> HPTimelineModel:
+    """Calculates HP per creature and coin balance per tick with event markers."""
+    ticks_count = max(1, battle.ticks_elapsed)
+    points: Dict[int, Dict[str, Any]] = {}
+
+    initial_hps = {cid: 100 for cid in battle.player_team}
+
+    for t in range(1, ticks_count + 1):
+        points[t] = {
             "tick": t,
-            "coins": current_coins,
-            "creatures": dict(current_hps),
+            "coins": 20,
+            "creatures": dict(initial_hps),
             "hazard_events": [],
             "ko_events": [],
+            "key_events": [],
         }
 
-    running_hps = {p: 100 for p in battle.player_team}
+    running_hps = dict(initial_hps)
     running_coins = 20
+
     for ev in battle.events:
         t = ev.tick
-        if t in ticks_map:
-            if ev.coin_change != 0:
-                running_coins += ev.coin_change
-            if ev.target in running_hps:
-                running_hps[ev.target] = ev.hp_after
-            ticks_map[t]["coins"] = running_coins
-            ticks_map[t]["creatures"] = dict(running_hps)
-            if ev.hazard_hit:
-                ticks_map[t]["hazard_events"].append(ev.hazard_hit)
-            if ev.ko:
-                ticks_map[t]["ko_events"].append(ev.target)
+        if t not in points:
+            continue
 
-    hp_timeline = [ticks_map[t] for t in sorted(ticks_map.keys())]
+        if ev.coin_after > 0 or ev.coin_before > 0:
+            running_coins = ev.coin_after
+        elif ev.coin_change != 0:
+            running_coins += ev.coin_change
 
-    # Heatmap of damage and KOs across 3 lanes x 8 tiles (0 to 7)
-    heatmap: List[List[Dict[str, int]]] = [
-        [{"damage": 0, "kos": 0} for _ in range(8)] for _ in range(3)
-    ]
-    for ev in battle.events:
-        # Approximate location based on tick progression if tile not explicitly bound
-        lane = 0
-        if "lane 1" in ev.action.lower():
-            lane = 1
-        elif "lane 2" in ev.action.lower():
-            lane = 2
-        tile = min(7, max(0, ev.tick // 5))
+        if ev.target in running_hps:
+            running_hps[ev.target] = ev.hp_after
 
-        if ev.damage > 0:
-            heatmap[lane][tile]["damage"] += ev.damage
+        points[t]["coins"] = running_coins
+        points[t]["creatures"] = dict(running_hps)
+
+        if ev.hazard_hit:
+            points[t]["hazard_events"].append(ev.hazard_hit)
+            points[t]["key_events"].append(f"Hazard: {ev.hazard_hit}")
         if ev.ko:
-            heatmap[lane][tile]["kos"] += 1
+            points[t]["ko_events"].append(ev.target or "Creature")
+            points[t]["key_events"].append(f"KO: {ev.target}")
+        if ev.event_type == "objective":
+            points[t]["key_events"].append("Objective Achieved")
+
+    timeline_points = [HPTimelinePointModel(**points[t]) for t in sorted(points.keys())]
+    return HPTimelineModel(battle_id=battle.battle_id, ticks=timeline_points)
+
+
+def position_heatmap(
+    battles: Union[BattleRecord, List[BattleRecord]],
+    lanes: int = 3,
+    tiles: int = 8,
+) -> PositionHeatmapModel:
+    """Calculates time spent, damage dealt, and KO locations across lanes and tiles."""
+    records = [battles] if isinstance(battles, BattleRecord) else battles
+
+    # Grid [lanes][tiles]
+    grid_data: List[List[Dict[str, int]]] = [
+        [{"time_spent": 0, "kos": 0, "damage": 0} for _ in range(tiles)]
+        for _ in range(lanes)
+    ]
+
+    for b in records:
+        for ev in b.events:
+            lane = 0
+            tile = 0
+            if isinstance(ev.position, dict):
+                lane = ev.position.get("lane", 0)
+                tile = ev.position.get("tile", 0)
+            elif hasattr(ev.position, "lane"):
+                lane = getattr(ev.position, "lane", 0)
+                tile = getattr(ev.position, "tile", 0)
+
+            # Bounds check
+            l_idx = max(0, min(lanes - 1, lane))
+            t_idx = max(0, min(tiles - 1, tile))
+
+            grid_data[l_idx][t_idx]["time_spent"] += 1
+            if ev.damage > 0:
+                grid_data[l_idx][t_idx]["damage"] += ev.damage
+            if ev.ko:
+                grid_data[l_idx][t_idx]["kos"] += 1
+
+    # Build Pydantic model grid
+    grid: List[List[PositionHeatmapCellModel]] = []
+    flat_cells = []
+    for l_idx in range(lanes):
+        row = []
+        for t_idx in range(tiles):
+            cell = PositionHeatmapCellModel(
+                lane=l_idx,
+                tile=t_idx,
+                time_spent=grid_data[l_idx][t_idx]["time_spent"],
+                kos=grid_data[l_idx][t_idx]["kos"],
+                damage=grid_data[l_idx][t_idx]["damage"],
+            )
+            row.append(cell)
+            flat_cells.append({"lane": l_idx, "tile": t_idx, "score": cell.damage + cell.kos * 50, "damage": cell.damage, "kos": cell.kos})
+        grid.append(row)
+
+    flat_cells.sort(key=lambda c: c["score"], reverse=True)
+    hottest = flat_cells[:3]
+
+    hottest_desc = ", ".join([f"Lane {h['lane']}, Tile {h['tile']} ({h['damage']} dmg, {h['kos']} KOs)" for h in hottest if h['score'] > 0])
+    text_summary = (
+        f"Combat intensity peaked at {hottest_desc}."
+        if hottest_desc
+        else "Even combat distribution across lanes with minimal concentrated hazard hotspots."
+    )
+
+    return PositionHeatmapModel(
+        lanes=lanes,
+        tiles=tiles,
+        grid=grid,
+        hottest_cells=hottest,
+        text_summary=text_summary,
+    )
+
+
+# --- Backward Compatible Wrapper for existing screens ---
+
+def compute_battle_descriptive_stats(battle: BattleRecord) -> Dict[str, Any]:
+    """Compatibility wrapper returning dictionary representation for legacy consumers."""
+    summary = battle_summary(battle)
+    c_stats = creature_stats(battle)
+    timeline = hp_timeline(battle)
+    hmap = position_heatmap(battle)
+
+    # Legacy 2D array representation expected by older components: list of list of dicts
+    legacy_heatmap = [
+        [{"damage": cell.damage, "kos": cell.kos} for cell in row]
+        for row in hmap.grid
+    ]
+
+    legacy_timeline = [
+        {
+            "tick": pt.tick,
+            "coins": pt.coins,
+            "creatures": pt.creatures,
+            "hazard_events": pt.hazard_events,
+            "ko_events": pt.ko_events,
+        }
+        for pt in timeline.ticks
+    ]
 
     return {
         "battle_id": battle.battle_id,
         "scenario_id": battle.scenario_id,
-        "outcome": battle.outcome,
-        "ticks_elapsed": battle.ticks_elapsed,
-        "survivors": battle.survivors,
-        "coins_left": battle.coins_left,
-        "creatures_stats": list(creatures_stats.values()),
-        "hp_timeline": hp_timeline,
-        "heatmap": heatmap,
-    }
-
-
-def aggregate_descriptive_stats(battles: List[BattleRecord]) -> Dict[str, Any]:
-    """Aggregates descriptive metrics across multiple battles."""
-    if not battles:
-        return {
-            "total_battles": 0,
-            "win_rate": 0.0,
-            "avg_ticks": 0.0,
-            "avg_survivors": 0.0,
-            "avg_coins_left": 0.0,
-        }
-
-    total = len(battles)
-    wins = sum(1 for b in battles if b.outcome == "win")
-    avg_ticks = sum(b.ticks_elapsed for b in battles) / total
-    avg_survivors = sum(b.survivors for b in battles) / total
-    avg_coins = sum(b.coins_left for b in battles) / total
-
-    return {
-        "total_battles": total,
-        "win_rate": round(wins / total, 3),
-        "avg_ticks": round(avg_ticks, 1),
-        "avg_survivors": round(avg_survivors, 2),
-        "avg_coins_left": round(avg_coins, 1),
+        "outcome": summary.outcome,
+        "ticks_elapsed": summary.ticks_elapsed,
+        "survivors": summary.survivors,
+        "coins_left": summary.coins_left,
+        "objective_status": summary.objective_status,
+        "summary_sentence": summary.summary_sentence,
+        "creatures_stats": [c.model_dump() for c in c_stats],
+        "hp_timeline": legacy_timeline,
+        "heatmap": legacy_heatmap,
     }

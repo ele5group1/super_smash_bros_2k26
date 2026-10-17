@@ -1,0 +1,177 @@
+/* Design Tokens for Scenario Battle Simulator */
+
+:root {
+  /* Spacing Scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius Scale */
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Type Scale */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-display: 'Outfit', 'Inter', -apple-system, sans-serif;
+
+  --font-size-small: 14px;
+  --font-size-body: 16px;
+  --font-size-h3: 18px;
+  --font-size-h2: 22px;
+  --font-size-h1: 28px;
+  --font-size-display: 44px;
+
+  /* Two Weights Only */
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+
+  /* Motion Tokens */
+  --duration-short: 120ms;
+  --duration-medium: 200ms;
+  --duration-long: 350ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+
+  /* Creature Type Ramps (Theme Independent Base Values) */
+  --color-fire: #ef4444;
+  --color-fire-bg: rgba(239, 68, 68, 0.15);
+  --color-water: #06b6d4;
+  --color-water-bg: rgba(6, 182, 212, 0.15);
+  --color-grass: #22c55e;
+  --color-grass-bg: rgba(34, 197, 94, 0.15);
+  --color-electric: #eab308;
+  --color-electric-bg: rgba(234, 179, 8, 0.15);
+  --color-stone: #a8a29e;
+  --color-stone-bg: rgba(168, 162, 158, 0.15);
+
+  /* Status Tokens */
+  --color-success: #10b981;
+  --color-success-bg: rgba(16, 185, 129, 0.15);
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-error: #ef4444;
+  --color-error-bg: rgba(239, 68, 68, 0.15);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.15);
+
+  /* Default Theme: Dark Mode */
+  --bg-app: #0b0f19;
+  --bg-surface: #111827;
+  --bg-card: #1f2937;
+  --bg-card-hover: #374151;
+  --bg-muted: #1e293b;
+  --bg-overlay: rgba(0, 0, 0, 0.75);
+
+  --border-subtle: #374151;
+  --border-strong: #4b5563;
+  --border-focus: #38bdf8;
+
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-inverse: #111827;
+
+  --accent-primary: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --accent-active: #0284c7;
+  --accent-subtle: rgba(56, 189, 248, 0.12);
+  --accent-contrast: #0f172a;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
+
+/* Light Theme Variables */
+[data-theme="light"] {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-muted: #f1f5f9;
+  --bg-overlay: rgba(15, 23, 42, 0.6);
+
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-focus: #0284c7;
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-inverse: #f8fafc;
+
+  --accent-primary: #0284c7;
+  --accent-hover: #0369a1;
+  --accent-active: #075985;
+  --accent-subtle: rgba(2, 132, 199, 0.1);
+  --accent-contrast: #ffffff;
+
+  --color-fire: #dc2626;
+  --color-water: #0891b2;
+  --color-grass: #16a34a;
+  --color-electric: #ca8a04;
+  --color-stone: #78716c;
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+/* User Text Scaling */
+[data-font-size="small"] {
+  --font-size-small: 13px;
+  --font-size-body: 15px;
+  --font-size-h3: 17px;
+  --font-size-h2: 20px;
+  --font-size-h1: 25px;
+  --font-size-display: 38px;
+}
+
+[data-font-size="large"] {
+  --font-size-small: 15px;
+  --font-size-body: 18px;
+  --font-size-h3: 20px;
+  --font-size-h2: 24px;
+  --font-size-h1: 32px;
+  --font-size-display: 48px;
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  *,
+  *::before,
+  *::after {
+    --duration-short: 0ms !important;
+    --duration-medium: 0ms !important;
+    --duration-long: 0ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  --duration-short: 0ms !important;
+  --duration-medium: 0ms !important;
+  --duration-long: 0ms !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}

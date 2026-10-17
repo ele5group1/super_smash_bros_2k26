@@ -78,8 +78,8 @@ def verify_battle_replay(battle: BattleRecord) -> Dict[str, Any]:
         }
 
     # Compare event logs
-    uploaded_events = [e for e in battle.events if e.event_type in ("hazard", "move", "status", "death")]
-    sim_events = [e for e in sim_battle.events if e.event_type in ("hazard", "move", "status", "death")]
+    uploaded_events = [e for e in battle.events if e.event_type in ("hazard", "move", "status", "death", "decision")]
+    sim_events = [e for e in sim_battle.events if e.event_type in ("hazard", "move", "status", "death", "decision")]
 
     min_len = min(len(uploaded_events), len(sim_events))
     for i in range(min_len):

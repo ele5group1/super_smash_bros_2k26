@@ -1,16 +1,29 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, NavLink, Link } from "react-router-dom";
-import { api } from "./api";
-import { SelectScreen } from "./screens/SelectScreen";
-import { BattleScreen } from "./screens/BattleScreen";
-import { ReportScreen } from "./screens/ReportScreen";
-import { PlanScreen } from "./screens/PlanScreen";
-import { AuthorScreen } from "./screens/AuthorScreen";
-import { DataScreen } from "./screens/DataScreen";
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { api } from './api';
+import { SettingsProvider } from './context/SettingsContext';
+import { ToastProvider } from './components/ui/Toast';
+import { Sidebar } from './components/navigation/Sidebar';
+import { BottomNav } from './components/navigation/BottomNav';
+import { Breadcrumbs } from './components/navigation/Breadcrumbs';
+import { CommandPalette } from './components/navigation/CommandPalette';
+import { ShortcutHelpModal } from './components/navigation/ShortcutHelpModal';
 
-export const App: React.FC = () => {
+import { LandingScreen } from './screens/LandingScreen';
+import { SelectScreen } from './screens/SelectScreen';
+import { BattleScreen } from './screens/BattleScreen';
+import { ReportScreen } from './screens/ReportScreen';
+import { PlanScreen } from './screens/PlanScreen';
+import { AuthorScreen } from './screens/AuthorScreen';
+import { DataScreen } from './screens/DataScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { HeroesScreen } from './screens/HeroesScreen';
+import { AnalyticsScreen } from './screens/AnalyticsScreen';
+
+export const AppContent: React.FC = () => {
   const [backendOnline, setBackendOnline] = useState<boolean>(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false);
 
   // Poll backend health status
   useEffect(() => {
@@ -23,87 +36,103 @@ export const App: React.FC = () => {
       }
     };
     checkStatus();
-    const interval = setInterval(checkStatus, 10000);
+    const interval = setInterval(checkStatus, 15000);
     return () => clearInterval(interval);
   }, []);
 
-  const closeMenu = () => setMobileMenuOpen(false);
+  // Global keyboard shortcuts (Cmd/Ctrl+K, ?)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      } else if (e.key === '?' && !isInput) {
+        e.preventDefault();
+        setShortcutsOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
-    <Router>
-      <div className="app-container">
-        {/* Top Arcade Navigation Bar */}
-        <header className="header-nav" role="banner">
-          <Link to="/" className="brand-section" onClick={closeMenu}>
-            <div className="brand-icon">
-              {/* Crossover Icon: Pokeball with Mario 'M' */}
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <circle cx="14" cy="14" r="13" fill="#1e293b" stroke="#f59e0b" strokeWidth="1.5" />
-                {/* Top Half Red */}
-                <path d="M1 14 A 13 13 0 0 1 27 14 Z" fill="#ef4444" />
-                {/* Bottom Half White */}
-                <path d="M1 14 A 13 13 0 0 0 27 14 Z" fill="#f8fafc" />
-                {/* Black Center Dividing Band */}
-                <rect x="1" y="12.5" width="26" height="3" fill="#0f172a" />
-                {/* Center Button */}
-                <circle cx="14" cy="14" r="4.5" fill="#f8fafc" stroke="#0f172a" strokeWidth="2" />
-                <circle cx="14" cy="14" r="2" fill="#ef4444" />
-              </svg>
-            </div>
-            <div>
-              <div className="brand-title">
-                MARIO x POKÉMON
-                <span className="brand-badge">BATTLE ARENA</span>
-              </div>
-            </div>
-          </Link>
+    <div className="app-layout">
+      {/* Persistent Collapsible Sidebar for Desktop */}
+      <Sidebar
+        backendOnline={backendOnline}
+        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
 
-          {/* Navigation Links */}
-          <nav className={`nav-links ${mobileMenuOpen ? "open" : ""}`} role="navigation" aria-label="Main Navigation">
-            <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`} onClick={closeMenu}>
-              Draft Squad
-            </NavLink>
-            <NavLink to="/plan" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`} onClick={closeMenu}>
-              Pre-Battle Plan
-            </NavLink>
-            <NavLink to="/author" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`} onClick={closeMenu}>
-              Scenario Author
-            </NavLink>
-            <NavLink to="/data" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`} onClick={closeMenu}>
-              Data & Uploads
-            </NavLink>
-          </nav>
+      {/* Main Column */}
+      <div className="main-wrapper">
+        <header className="top-bar" role="banner">
+          <div className="top-bar-left">
+            <Breadcrumbs />
+          </div>
 
-          {/* Backend Connection Health Badge & Mobile Toggle */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <div className="backend-badge" title={backendOnline ? "Connected to FastAPI backend" : "Backend unreachable"}>
-              <div className={`status-dot ${backendOnline ? "" : "offline"}`} />
-              <span>{backendOnline ? "LIVE ENGINE" : "DISCONNECTED"}</span>
-            </div>
-
+          <div className="top-bar-right">
             <button
-              className="mobile-nav-toggle"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle navigation menu"
-              aria-expanded={mobileMenuOpen}
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={() => setPaletteOpen(true)}
+              title="Search (Ctrl+K)"
+              id="top-search-button"
             >
-              ☰
+              <span>🔍</span>
+              <span className="desktop-only">Search</span>
+              <kbd className="kbd-key" style={{ fontSize: '10px' }}>Ctrl+K</kbd>
             </button>
+
+            <Link to="/settings" className="ui-btn ui-btn-ghost ui-btn-sm" title="Settings" aria-label="Settings">
+              ⚙️
+            </Link>
           </div>
         </header>
 
-        {/* Main Routed Content */}
-        <main className="main-content" role="main">
+        <main role="main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Routes>
-            <Route path="/" element={<SelectScreen />} />
+            <Route path="/" element={<LandingScreen />} />
+            <Route path="/scenarios" element={<SelectScreen />} />
+            <Route path="/scenarios/:id" element={<SelectScreen />} />
+            <Route path="/battles/:id" element={<BattleScreen />} />
             <Route path="/battle/:id" element={<BattleScreen />} />
             <Route path="/report/:id" element={<ReportScreen />} />
             <Route path="/plan" element={<PlanScreen />} />
             <Route path="/author" element={<AuthorScreen />} />
             <Route path="/data" element={<DataScreen />} />
+            <Route path="/heroes" element={<HeroesScreen />} />
+            <Route path="/analytics" element={<AnalyticsScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
           </Routes>
         </main>
       </div>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNav />
+
+      {/* Command Palette Modal */}
+      <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <ShortcutHelpModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <Router>
+      <SettingsProvider>
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
+      </SettingsProvider>
     </Router>
   );
 };

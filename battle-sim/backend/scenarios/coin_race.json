@@ -1,7 +1,7 @@
 {
   "id": "coin_race",
-  "name": "Pokémon Stadium: Championship Cup",
-  "description": "Battle under the grand stadium spotlights to gather 35 coins and conquer rival Pokémon while navigating electric surge hazards.",
+  "name": "Sky Shroom Coin Rush",
+  "description": "Dash across the floating mushroom bridges to harvest 35 coins before electric storm clouds overload the arena.",
   "lanes": 3,
   "ticks": 35,
   "starting_resources": {
@@ -14,9 +14,9 @@
     "target_tick": 35
   },
   "enemy_team": [
-    "gengar",
-    "onix",
-    "mewtwo"
+    "spark_finch",
+    "thunder_wasp",
+    "volt_hedgehog"
   ],
   "map": [
     { "scenario_id": "coin_race", "lane": 0, "tile_index": 1, "tile_type": "coin_cache" },

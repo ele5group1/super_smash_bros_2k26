@@ -1,4 +1,7 @@
 import React, { useState, useRef } from "react";
+import { Card, CardBody } from "./ui/Card";
+import { Badge } from "./ui/Badge";
+import { Button } from "./ui/Button";
 
 interface UploadDropzoneProps {
   onFileSelected: (file: File, kind: "scenarios" | "creatures" | "battles") => void;
@@ -11,18 +14,43 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onFileSelected, 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const kinds = [
+    {
+      id: "creatures" as const,
+      title: "Creatures",
+      icon: "🐾",
+      desc: "Upload custom combatants with HP, attack, speed, element typing, and move pools (.csv or .json).",
+      sampleUrl: "/api/export/creatures?format=csv",
+      sampleLabel: "Download sample CSV",
+    },
+    {
+      id: "scenarios" as const,
+      title: "Scenarios",
+      icon: "🗺️",
+      desc: "Upload multi-lane maps with hazard schedules, coin budgets, and win conditions (.json or .zip).",
+      sampleUrl: "/api/export/scenarios?format=json",
+      sampleLabel: "Download sample JSON",
+    },
+    {
+      id: "battles" as const,
+      title: "Battles",
+      icon: "⚔️",
+      desc: "Upload empirical combat replay logs for Monte Carlo planner calibration and gap analysis.",
+      sampleUrl: "/api/export/battles?format=csv",
+      sampleLabel: "Download sample CSV",
+    },
+  ];
+
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
     const name = file.name.toLowerCase();
 
-    // Check supported extension
     if (!name.endsWith(".json") && !name.endsWith(".csv") && !name.endsWith(".zip")) {
       setErrorMsg("Unsupported file format. Please upload a .json, .csv, or .zip archive.");
       return;
     }
 
-    // Size limit check (10 MB)
     if (file.size > 10 * 1024 * 1024) {
       setErrorMsg("File exceeds the 10 MB size limit.");
       return;
@@ -33,54 +61,56 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onFileSelected, 
   };
 
   return (
-    <div className="arcade-panel" style={{ padding: "1.25rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-        <div>
-          <h4 style={{ color: "#fff", fontWeight: 800 }}>Dataset Importer</h4>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-            Upload custom creature rosters, scenarios, or battle logs (.json, .csv, or .zip)
-          </p>
-        </div>
-
-        {/* Kind Selector */}
-        <div style={{ display: "flex", gap: "0.4rem" }}>
-          {(["creatures", "scenarios", "battles"] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setSelectedKind(k)}
-              className={`btn-arcade ${selectedKind === k ? "btn-primary" : "btn-secondary"}`}
-              style={{ fontSize: "0.8rem", padding: "4px 10px", textTransform: "capitalize" }}
-            >
-              {k}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Bundle hints */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      {/* 1. Three Kind Cards with sample links */}
       <div
         style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "8px",
-          padding: "0.75rem",
-          marginBottom: "1rem",
-          fontSize: "0.8rem",
-          color: "var(--text-muted)",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "var(--space-4)",
         }}
       >
-        <strong style={{ color: "#fff" }}>Required bundle structure for {selectedKind}:</strong>
-        {selectedKind === "creatures" && <span> Single JSON list of creatures or creatures.csv</span>}
-        {selectedKind === "scenarios" && (
-          <span> Single scenario.json or scenarios_bundle.zip (scenarios.csv, hazards.csv, map_tiles.csv)</span>
-        )}
-        {selectedKind === "battles" && (
-          <span> Single battles.json or battles_bundle.zip (battles.csv, battle_events.csv)</span>
-        )}
+        {kinds.map((k) => {
+          const isSelected = selectedKind === k.id;
+          return (
+            <Card
+              key={k.id}
+              variant={isSelected ? "accent" : "interactive"}
+              onClick={() => setSelectedKind(k.id)}
+              style={{
+                borderColor: isSelected ? "var(--accent-primary)" : undefined,
+                background: isSelected ? "var(--accent-subtle)" : undefined,
+                cursor: "pointer",
+              }}
+            >
+              <CardBody>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--space-2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                    <span style={{ fontSize: "1.5rem" }}>{k.icon}</span>
+                    <h3 className="text-h3">{k.title}</h3>
+                  </div>
+                  {isSelected && <Badge variant="info" size="sm">ACTIVE KIND</Badge>}
+                </div>
+                <p className="text-muted text-small" style={{ marginBottom: "var(--space-4)", minHeight: "44px" }}>
+                  {k.desc}
+                </p>
+                <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-2)" }}>
+                  <a
+                    href={k.sampleUrl}
+                    download
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ fontSize: "12px", color: "var(--accent-primary)", textDecoration: "none", fontWeight: "bold" }}
+                  >
+                    📥 {k.sampleLabel}
+                  </a>
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Drag & Drop Area */}
+      {/* 2. Large Drop Zone */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -94,44 +124,47 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onFileSelected, 
         }}
         onClick={() => fileInputRef.current?.click()}
         style={{
-          border: `2px dashed ${dragOver ? "var(--border-highlight)" : "var(--border-color)"}`,
-          background: dragOver ? "rgba(37, 99, 235, 0.08)" : "rgba(255, 255, 255, 0.02)",
-          borderRadius: "12px",
-          padding: "2.5rem 1rem",
+          border: `2px dashed ${dragOver ? "var(--accent-primary)" : "var(--border-subtle)"}`,
+          background: dragOver ? "var(--accent-subtle)" : "var(--bg-muted)",
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-10) var(--space-4)",
           textAlign: "center",
           cursor: "pointer",
-          transition: "all 0.15s ease",
+          transition: "all var(--duration-short) ease",
         }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        aria-label={`Dropzone for uploading ${selectedKind}`}
       >
         <input
-          type="file"
           ref={fileInputRef}
-          style={{ display: "none" }}
+          type="file"
           accept=".json,.csv,.zip"
+          style={{ display: "none" }}
           onChange={(e) => handleFiles(e.target.files)}
         />
-        <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>📁</div>
-        <div style={{ color: "#fff", fontWeight: 700, fontSize: "1rem", marginBottom: "0.25rem" }}>
-          {isLoading ? "Uploading and Validating..." : "Drag & drop files here, or click to browse"}
-        </div>
-        <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-          Target Kind: <strong style={{ color: "var(--coin-gold)" }}>{selectedKind.toUpperCase()}</strong> (Max 10 MB)
-        </div>
+
+        <div style={{ fontSize: "2.5rem", marginBottom: "var(--space-2)" }}>📤</div>
+        <h3 className="text-h3" style={{ marginBottom: "var(--space-1)" }}>
+          Drag & Drop {selectedKind.toUpperCase()} file here
+        </h3>
+        <p className="text-muted text-small" style={{ marginBottom: "var(--space-4)" }}>
+          Supports .json, .csv, and bundled .zip archives (up to 10 MB). Strict validation with atomic rollbacks.
+        </p>
+        <Button variant="secondary" size="sm" isLoading={isLoading} onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+          Select File to Upload
+        </Button>
       </div>
 
       {errorMsg && (
-        <div
-          style={{
-            marginTop: "1rem",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid #ef4444",
-            borderRadius: "8px",
-            padding: "0.75rem",
-            color: "#fca5a5",
-            fontSize: "0.85rem",
-          }}
-        >
-          {errorMsg}
+        <div style={{ color: "var(--color-error)", fontSize: "var(--font-size-small)", fontWeight: "bold" }}>
+          ⚠️ {errorMsg}
         </div>
       )}
     </div>

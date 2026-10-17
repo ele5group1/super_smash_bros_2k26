@@ -107,3 +107,52 @@ def test_scenario_validation_strict():
 
     with pytest.raises(Exception):
         Creature(id="zero_speed", name="Bad", type=CreatureType.FIRE, hp=100, attack=30, speed=0)
+
+
+def test_event_log_prerequisites_all_fields_present(test_db):
+    """Verifies each tick's event record contains all required fields, and decisions include options and chosen action."""
+    scenario = test_db.get_scenario("pipe_ambush")
+    player_team = [test_db.get_creature("ember_fox"), test_db.get_creature("bubble_toad")]
+    enemy_team = [test_db.get_creature(cid) for cid in scenario.enemy_team]
+
+    engine = TickEngine(scenario, player_team, enemy_team, seed=1000)
+    battle = engine.run()
+
+    assert len(battle.events) > 0
+
+    required_event_fields = [
+        "battle_id", "tick", "actor", "action", "target", "damage",
+        "hp_before", "hp_after", "position", "status_change",
+        "hazard_hit", "pickup", "ko", "coin_before", "coin_after", "event_type"
+    ]
+
+    has_decision_event = False
+
+    for ev in battle.events:
+        dump = ev.model_dump()
+        for field in required_event_fields:
+            assert field in dump, f"Missing required field '{field}' in event: {dump}"
+
+        assert isinstance(dump["position"], dict)
+        assert "lane" in dump["position"]
+        assert "tile" in dump["position"]
+        assert isinstance(dump["position"]["lane"], int)
+        assert isinstance(dump["position"]["tile"], int)
+        assert isinstance(dump["coin_before"], int)
+        assert isinstance(dump["coin_after"], int)
+        assert isinstance(dump["damage"], int)
+        assert isinstance(dump["ko"], bool)
+
+        if ev.event_type == "decision":
+            has_decision_event = True
+            assert ev.options_considered is not None
+            assert len(ev.options_considered) > 0
+            for opt in ev.options_considered:
+                assert "action" in opt
+                assert "score" in opt
+                assert isinstance(opt["score"], (int, float))
+            assert ev.chosen_action is not None
+            assert len(ev.chosen_action) > 0
+
+    assert has_decision_event, "Battle log must contain decision events with options considered"
+

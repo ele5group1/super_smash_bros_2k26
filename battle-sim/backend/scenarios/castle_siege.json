@@ -1,7 +1,7 @@
 {
   "id": "castle_siege",
-  "name": "Bowser's Castle: Lava Siege",
-  "description": "Storm King Bowser's fortified volcanic keep, dodging crushing Thwomps and lava plumes to conquer the castle.",
+  "name": "Spiky Castle Siege",
+  "description": "Storm the fortified bastions of Spiky Keep under crushing Thud-Blocks and periodic lava surges.",
   "lanes": 3,
   "ticks": 40,
   "starting_resources": {
@@ -14,9 +14,9 @@
     "target_tick": 40
   },
   "enemy_team": [
-    "koopa_troopa",
-    "electabuzz",
-    "bowser"
+    "iron_spikeling",
+    "crag_golem",
+    "pyro_tyrant"
   ],
   "map": [
     { "scenario_id": "castle_siege", "lane": 0, "tile_index": 2, "tile_type": "hazard_zone" },
@@ -27,9 +27,9 @@
     { "scenario_id": "castle_siege", "lane": 2, "tile_index": 4, "tile_type": "pipe" }
   ],
   "hazard_schedule": [
-    { "scenario_id": "castle_siege", "tick": 8, "type": "thwomp", "lane": 0, "params": { "damage": 35 } },
+    { "scenario_id": "castle_siege", "tick": 8, "type": "thud_block", "lane": 0, "params": { "damage": 35 } },
     { "scenario_id": "castle_siege", "tick": 16, "type": "lava_surge", "lane": 1, "params": { "damage": 30, "burn": true } },
-    { "scenario_id": "castle_siege", "tick": 24, "type": "thwomp", "lane": 2, "params": { "damage": 35 } },
+    { "scenario_id": "castle_siege", "tick": 24, "type": "thud_block", "lane": 2, "params": { "damage": 35 } },
     { "scenario_id": "castle_siege", "tick": 34, "type": "lava_surge", "lane": 1, "params": { "damage": 36, "burn": true } }
   ]
 }

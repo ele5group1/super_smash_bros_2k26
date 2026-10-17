@@ -1,28 +1,42 @@
 import React, { useState, useEffect, useRef } from "react";
 import { BattleRecord, Scenario, Creature } from "../api";
 import { CreatureAvatar } from "./CreatureCard";
+import { TimelineStrip } from "./TimelineStrip";
+import { EventTicker } from "./EventTicker";
+import { Button } from "./ui/Button";
+import { Badge } from "./ui/Badge";
 
 interface ArenaProps {
   battle: BattleRecord;
   scenario?: Scenario | null;
   creaturesMap: Record<string, Creature>;
+  onTickChange?: (tick: number) => void;
 }
 
-export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) => {
+export const Arena: React.FC<ArenaProps> = ({
+  battle,
+  scenario,
+  creaturesMap,
+  onTickChange,
+}) => {
   const [currentTick, setCurrentTick] = useState<number>(1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 0.5x, 1x, 2x, 4x
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [activeEffect, setActiveEffect] = useState<{ text: string; type: string } | null>(null);
 
   const maxTicks = battle.ticks_elapsed || 40;
   const timerRef = useRef<number | null>(null);
 
-  // Derive state at currentTick from event log
+  // Notify parent of tick change
+  useEffect(() => {
+    onTickChange?.(currentTick);
+  }, [currentTick, onTickChange]);
+
+  // Derive squad states up to currentTick
   const playerHps: Record<string, number> = {};
   const enemyHps: Record<string, number> = {};
   let currentCoins = scenario?.starting_resources?.coins || 20;
 
-  // Initialize maximum HPs
   battle.player_team.forEach((cid) => {
     playerHps[cid] = creaturesMap[cid]?.hp || 120;
   });
@@ -32,10 +46,8 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
     });
   }
 
-  // Active hazards at current tick
   const activeHazards = scenario?.hazard_schedule?.filter((h) => h.tick === currentTick) || [];
 
-  // Replay events up to currentTick
   for (const ev of battle.events) {
     if (ev.tick > currentTick) break;
     if (ev.coin_change) currentCoins += ev.coin_change;
@@ -45,7 +57,7 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
     }
   }
 
-  // Animation playback loop
+  // Playback timer loop
   useEffect(() => {
     if (isPlaying) {
       const interval = 1000 / playbackSpeed;
@@ -66,7 +78,30 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
     };
   }, [isPlaying, playbackSpeed, maxTicks]);
 
-  // Flash hit/pickup events on tick change
+  // Keyboard shortcut Space to toggle play/pause, left/right arrows to step
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying((prev) => !prev);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setIsPlaying(false);
+        setCurrentTick((prev) => Math.min(maxTicks, prev + 1));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setIsPlaying(false);
+        setCurrentTick((prev) => Math.max(1, prev - 1));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [maxTicks]);
+
+  // Flash combat effects
   useEffect(() => {
     const tickEvents = battle.events.filter((e) => e.tick === currentTick);
     const hit = tickEvents.find((e) => e.ko || e.damage > 0 || e.pickup || e.hazard_hit);
@@ -84,7 +119,7 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
         type = "hazard";
       }
       setActiveEffect({ text, type });
-      const t = setTimeout(() => setActiveEffect(null), 700);
+      const t = setTimeout(() => setActiveEffect(null), 600);
       return () => clearTimeout(t);
     } else {
       setActiveEffect(null);
@@ -94,114 +129,48 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
   const lanesCount = scenario?.lanes || 3;
 
   return (
-    <div className="arcade-panel" style={{ padding: "1.25rem" }}>
-      {/* Control Bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "1rem",
-          marginBottom: "1rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid var(--border-color)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <button
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      {/* Media Player Control Bar */}
+      <div className="replay-controls" role="toolbar" aria-label="Battle playback controls">
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <Button
+            id="replay-play-pause-btn"
+            variant="primary"
+            size="sm"
             onClick={() => setIsPlaying(!isPlaying)}
-            className="btn-arcade btn-primary"
-            style={{ padding: "0.5rem 1rem", fontSize: "0.9rem" }}
-            aria-label={isPlaying ? "Pause battle playback" : "Play battle animation"}
+            aria-label={isPlaying ? "Pause playback" : "Play battle replay"}
           >
             {isPlaying ? "❚❚ Pause" : "▶ Play"}
-          </button>
-          <button
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               setIsPlaying(false);
               setCurrentTick((prev) => Math.max(1, prev - 1));
             }}
             disabled={currentTick <= 1}
-            className="btn-arcade btn-secondary"
-            style={{ padding: "0.5rem 0.75rem", fontSize: "0.85rem" }}
-            aria-label="Step backward one tick"
+            aria-label="Step back one tick"
           >
             ⏮ Step
-          </button>
-          <button
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               setIsPlaying(false);
               setCurrentTick((prev) => Math.min(maxTicks, prev + 1));
             }}
             disabled={currentTick >= maxTicks}
-            className="btn-arcade btn-secondary"
-            style={{ padding: "0.5rem 0.75rem", fontSize: "0.85rem" }}
             aria-label="Step forward one tick"
           >
             Step ⏭
-          </button>
-          <button
-            onClick={() => {
-              setIsPlaying(false);
-              setCurrentTick(1);
-            }}
-            className="btn-arcade btn-secondary"
-            style={{ padding: "0.5rem 0.75rem", fontSize: "0.85rem" }}
-            aria-label="Reset battle animation to beginning"
-          >
-            Reset
-          </button>
+          </Button>
         </div>
 
-        {/* Speed Selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Speed:</span>
-          {[0.5, 1, 2, 4].map((spd) => (
-            <button
-              key={spd}
-              onClick={() => setPlaybackSpeed(spd)}
-              className={`btn-arcade ${playbackSpeed === spd ? "btn-accent" : "btn-secondary"}`}
-              style={{ padding: "3px 8px", fontSize: "0.8rem", borderRadius: "4px" }}
-            >
-              {spd}x
-            </button>
-          ))}
-        </div>
-
-        {/* Coin indicator & Tick badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div
-            style={{
-              background: "#422006",
-              border: "1px solid var(--coin-gold)",
-              padding: "4px 10px",
-              borderRadius: "20px",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              fontWeight: 800,
-              color: "var(--coin-gold)",
-            }}
-          >
-            <span>🪙 Coins:</span>
-            <span>{currentCoins}</span>
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 900,
-              fontSize: "1.1rem",
-              color: "#fff",
-            }}
-          >
-            Tick {currentTick} / {maxTicks}
-          </div>
-        </div>
-      </div>
-
-      {/* Scrubber slider */}
-      <div style={{ marginBottom: "1.25rem" }}>
+        {/* Scrubber slider */}
         <input
           type="range"
           min={1}
@@ -211,33 +180,48 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
             setIsPlaying(false);
             setCurrentTick(Number(e.target.value));
           }}
-          aria-label="Tick Scrubber"
-          style={{
-            width: "100%",
-            accentColor: "var(--border-highlight)",
-            cursor: "pointer",
-          }}
+          className="replay-scrub-slider"
+          aria-label="Replay scrub slider"
         />
+
+        {/* Speed pills */}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          {[0.5, 1, 2, 4].map((spd) => (
+            <button
+              key={spd}
+              type="button"
+              className={`ui-btn ui-btn-sm ${playbackSpeed === spd ? "ui-btn-primary" : "ui-btn-ghost"}`}
+              onClick={() => setPlaybackSpeed(spd)}
+              style={{ minWidth: "32px", padding: "2px 6px", height: "26px", fontSize: "11px" }}
+            >
+              {spd}x
+            </button>
+          ))}
+        </div>
+
+        {/* Ticks and Coins */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <Badge variant="warning" size="sm">
+            🪙 {currentCoins}
+          </Badge>
+          <Badge variant="neutral" size="sm">
+            T{currentTick}/{maxTicks}
+          </Badge>
+        </div>
       </div>
 
-      {/* Main Visual Arena Grid */}
+      {/* Scaled Visual Arena */}
       <div
         style={{
           position: "relative",
-          background:
-            scenario?.id === "pipe_ambush"
-              ? "linear-gradient(180deg, #0284c7 0%, #075985 45%, #14532d 100%)"
-              : scenario?.id === "castle_siege"
-              ? "linear-gradient(180deg, #18181b 0%, #450a0a 55%, #7f1d1d 100%)"
-              : scenario?.id === "coin_race"
-              ? "linear-gradient(180deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)"
-              : "linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%)",
-          borderRadius: "12px",
-          border: "2px solid #334155",
-          padding: "1rem",
+          background: "linear-gradient(180deg, #090d16 0%, #111827 100%)",
+          borderRadius: "var(--radius-lg)",
+          border: "1px solid var(--border-subtle)",
+          padding: "var(--space-4)",
           minHeight: "260px",
+          width: "100%",
+          boxShadow: "inset 0 0 30px rgba(0, 0, 0, 0.6)",
           overflow: "hidden",
-          boxShadow: "inset 0 0 40px rgba(0,0,0,0.5)",
         }}
       >
         {/* Floating pop-up effect banner */}
@@ -245,23 +229,22 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
           <div
             style={{
               position: "absolute",
-              top: "12px",
+              top: "14px",
               left: "50%",
               transform: "translateX(-50%)",
               zIndex: 30,
               background:
                 activeEffect.type === "ko"
-                  ? "var(--primary-red)"
+                  ? "var(--color-error)"
                   : activeEffect.type === "hazard"
-                  ? "var(--hazard-purple)"
-                  : "var(--primary-yellow)",
+                  ? "#a855f7"
+                  : "var(--color-warning)",
               color: activeEffect.type === "hazard" || activeEffect.type === "ko" ? "#fff" : "#000",
-              fontWeight: 900,
-              fontSize: "0.95rem",
-              padding: "4px 14px",
-              borderRadius: "20px",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-              animation: "bounce 0.4s ease-out",
+              fontWeight: "bold",
+              fontSize: "13px",
+              padding: "4px 16px",
+              borderRadius: "var(--radius-full)",
+              boxShadow: "var(--shadow-md)",
             }}
           >
             {activeEffect.text}
@@ -269,7 +252,7 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
         )}
 
         {/* Lanes Render */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           {Array.from({ length: lanesCount }).map((_, laneIdx) => {
             const laneHazard = activeHazards.find((h) => h.lane === laneIdx);
             return (
@@ -277,36 +260,34 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
                 key={laneIdx}
                 style={{
                   position: "relative",
-                  height: "70px",
+                  height: "74px",
                   background: laneHazard
-                    ? "rgba(239, 68, 68, 0.25)"
-                    : "rgba(255, 255, 255, 0.04)",
-                  borderRadius: "8px",
-                  border: laneHazard ? "2px dashed #ef4444" : "1px solid rgba(255,255,255,0.1)",
+                    ? "rgba(239, 68, 68, 0.15)"
+                    : "rgba(255, 255, 255, 0.03)",
+                  borderRadius: "var(--radius-md)",
+                  border: laneHazard ? "1px dashed var(--color-error)" : "1px solid var(--border-subtle)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "0 10px",
-                  transition: "background 0.2s ease",
+                  padding: "0 var(--space-3)",
                 }}
               >
-                {/* Lane Label */}
                 <span
                   style={{
                     position: "absolute",
-                    left: "6px",
+                    left: "8px",
                     top: "4px",
-                    fontSize: "0.65rem",
-                    color: "rgba(255,255,255,0.3)",
-                    fontWeight: 700,
+                    fontSize: "10px",
+                    color: "var(--text-muted)",
+                    fontWeight: "bold",
                     textTransform: "uppercase",
                   }}
                 >
                   Lane {laneIdx + 1}
                 </span>
 
-                {/* Left side: Player creatures on this lane */}
-                <div style={{ display: "flex", gap: "8px", zIndex: 10 }}>
+                {/* Left side: Allies */}
+                <div style={{ display: "flex", gap: "var(--space-2)", zIndex: 10 }}>
                   {battle.player_team
                     .filter((_, idx) => idx % lanesCount === laneIdx)
                     .map((cid) => {
@@ -321,20 +302,20 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
                             flexDirection: "column",
                             alignItems: "center",
                             opacity: isDead ? 0.35 : 1,
-                            transition: "all 0.2s ease",
+                            transition: "opacity var(--duration-short) ease",
                           }}
                         >
                           <CreatureAvatar
                             type={c?.type || "fire"}
                             avatar={c?.avatar}
                             id={c?.id}
-                            size={36}
+                            size={38}
                           />
                           <div
                             style={{
                               width: "38px",
                               height: "4px",
-                              background: "#334155",
+                              background: "var(--bg-muted)",
                               borderRadius: "2px",
                               marginTop: "2px",
                               overflow: "hidden",
@@ -344,7 +325,7 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
                               style={{
                                 width: `${Math.max(0, Math.min(100, (hp / (c?.hp || 100)) * 100))}%`,
                                 height: "100%",
-                                background: hp < 30 ? "#ef4444" : "#10b981",
+                                background: hp < 30 ? "var(--color-error)" : "var(--color-success)",
                               }}
                             />
                           </div>
@@ -353,42 +334,42 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
                     })}
                 </div>
 
-                {/* Center interactables: Pipes and Question Blocks */}
-                <div style={{ display: "flex", gap: "16px", zIndex: 5 }}>
+                {/* Center interactables: Hazards / Powerups */}
+                <div style={{ display: "flex", gap: "var(--space-3)", zIndex: 5 }}>
                   {scenario?.map
                     ?.filter((t) => t.lane === laneIdx)
                     .map((t, tidx) => (
                       <div
                         key={tidx}
                         style={{
-                          fontSize: "0.75rem",
-                          fontWeight: 800,
-                          padding: "2px 6px",
-                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "bold",
+                          padding: "2px 8px",
+                          borderRadius: "var(--radius-sm)",
                           background:
                             t.tile_type === "pipe"
                               ? "#15803d"
-                              : t.tile_type === "question_block"
-                              ? "#d97706"
+                              : t.tile_type === "hazard_zone" || t.tile_type === "lava"
+                              ? "var(--color-error)"
                               : t.tile_type === "exit"
-                              ? "#2563eb"
-                              : "rgba(255,255,255,0.08)",
+                              ? "var(--accent-primary)"
+                              : "var(--bg-muted)",
                           color: "#fff",
                         }}
                       >
                         {t.tile_type === "pipe"
                           ? "🕳 Pipe"
-                          : t.tile_type === "question_block"
-                          ? "? Block"
+                          : t.tile_type === "hazard_zone" || t.tile_type === "lava"
+                          ? "⚠️ Spikes"
                           : t.tile_type === "exit"
-                          ? "🏁 Exit"
+                          ? "🏁 Goal"
                           : t.tile_type}
                       </div>
                     ))}
                 </div>
 
-                {/* Right side: Enemies on this lane */}
-                <div style={{ display: "flex", gap: "8px", zIndex: 10 }}>
+                {/* Right side: Enemies */}
+                <div style={{ display: "flex", gap: "var(--space-2)", zIndex: 10 }}>
                   {scenario?.enemy_team
                     ?.filter((_, idx) => idx % lanesCount === laneIdx)
                     .map((eid) => {
@@ -403,20 +384,20 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
                             flexDirection: "column",
                             alignItems: "center",
                             opacity: isDead ? 0.35 : 1,
-                            transition: "all 0.2s ease",
+                            transition: "opacity var(--duration-short) ease",
                           }}
                         >
                           <CreatureAvatar
                             type={c?.type || "stone"}
                             avatar={c?.avatar}
                             id={c?.id}
-                            size={36}
+                            size={38}
                           />
                           <div
                             style={{
                               width: "38px",
                               height: "4px",
-                              background: "#334155",
+                              background: "var(--bg-muted)",
                               borderRadius: "2px",
                               marginTop: "2px",
                               overflow: "hidden",
@@ -426,7 +407,7 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
                               style={{
                                 width: `${Math.max(0, Math.min(100, (hp / (c?.hp || 100)) * 100))}%`,
                                 height: "100%",
-                                background: hp < 30 ? "#ef4444" : "#f59e0b",
+                                background: hp < 30 ? "var(--color-error)" : "var(--color-warning)",
                               }}
                             />
                           </div>
@@ -440,71 +421,19 @@ export const Arena: React.FC<ArenaProps> = ({ battle, scenario, creaturesMap }) 
         </div>
       </div>
 
-      {/* Side Status Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "1rem",
-          marginTop: "1.25rem",
+      {/* Timeline Strip */}
+      <TimelineStrip
+        totalTicks={maxTicks}
+        currentTick={currentTick}
+        onSelectTick={(t) => {
+          setIsPlaying(false);
+          setCurrentTick(t);
         }}
-      >
-        {/* Allied Squad Status */}
-        <div style={{ background: "var(--bg-surface)", borderRadius: "8px", padding: "0.75rem" }}>
-          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-            ALLIED SQUAD HP
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {battle.player_team.map((cid) => {
-              const c = creaturesMap[cid];
-              const maxHp = c?.hp || 100;
-              const hp = playerHps[cid] ?? maxHp;
-              const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
-              return (
-                <div key={cid} style={{ fontSize: "0.85rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-                    <span>{c?.name || cid}</span>
-                    <strong style={{ color: hp <= 0 ? "#ef4444" : "#fff" }}>
-                      {hp} / {maxHp}
-                    </strong>
-                  </div>
-                  <div style={{ width: "100%", height: "6px", background: "#334155", borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: hp < 30 ? "#ef4444" : "#10b981", transition: "width 0.2s ease" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        events={battle.events}
+      />
 
-        {/* Enemy Squad Status */}
-        <div style={{ background: "var(--bg-surface)", borderRadius: "8px", padding: "0.75rem" }}>
-          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "0.5rem" }}>
-            OPPOSING FORCES HP
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {scenario?.enemy_team?.map((eid) => {
-              const c = creaturesMap[eid];
-              const maxHp = c?.hp || 120;
-              const hp = enemyHps[eid] ?? maxHp;
-              const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
-              return (
-                <div key={eid} style={{ fontSize: "0.85rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-                    <span>{c?.name || eid}</span>
-                    <strong style={{ color: hp <= 0 ? "#ef4444" : "#fff" }}>
-                      {hp} / {maxHp}
-                    </strong>
-                  </div>
-                  <div style={{ width: "100%", height: "6px", background: "#334155", borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: hp < 30 ? "#ef4444" : "#f59e0b", transition: "width 0.2s ease" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      {/* Event Ticker */}
+      <EventTicker events={battle.events} currentTick={currentTick} />
     </div>
   );
 };

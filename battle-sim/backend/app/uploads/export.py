@@ -131,10 +131,14 @@ def export_battles_zip(battles: List[BattleRecord]) -> bytes:
         ev_out = io.StringIO()
         ev_writer = csv.writer(ev_out, lineterminator="\r\n")
         ev_writer.writerow([
-            "battle_id", "tick", "actor", "action", "target", "damage", "hp_after", "coin_change", "event_type"
+            "battle_id", "tick", "actor", "action", "target", "damage", "hp_after", "coin_change", "event_type",
+            "lane", "tile", "coin_before", "coin_after", "chosen_action", "options_considered"
         ])
         for b in battles:
             for ev in b.events:
+                lane = ev.position.get("lane", 0) if isinstance(ev.position, dict) else getattr(ev.position, "lane", 0)
+                tile = ev.position.get("tile", 0) if isinstance(ev.position, dict) else getattr(ev.position, "tile", 0)
+                opts_json = json.dumps(ev.options_considered) if ev.options_considered else ""
                 ev_writer.writerow([
                     sanitize_cell(b.battle_id),
                     sanitize_cell(ev.tick),
@@ -145,6 +149,12 @@ def export_battles_zip(battles: List[BattleRecord]) -> bytes:
                     sanitize_cell(ev.hp_after),
                     sanitize_cell(ev.coin_change),
                     sanitize_cell(ev.event_type),
+                    sanitize_cell(lane),
+                    sanitize_cell(tile),
+                    sanitize_cell(ev.coin_before),
+                    sanitize_cell(ev.coin_after),
+                    sanitize_cell(ev.chosen_action or ""),
+                    sanitize_cell(opts_json),
                 ])
         zf.writestr("battle_events.csv", ev_out.getvalue().encode("utf-8"))
 

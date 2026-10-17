@@ -3,6 +3,7 @@
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Literal
+from pydantic import BaseModel, Field
 
 from fastapi import (
     FastAPI,
@@ -29,19 +30,47 @@ from .engine.models import (
     PlanRecommendRequest,
 )
 from .engine.tick import TickEngine
-from .analytics.descriptive import compute_battle_descriptive_stats
-from .analytics.diagnostic import (
+from .analytics import (
+    BattleSummaryModel,
+    CreatureStatsModel,
+    TeamStatsModel,
+    HPTimelineModel,
+    PositionHeatmapModel,
+    CauseTraceModel,
+    LossCausesReportModel,
+    DecisionAuditReportModel,
+    CounterfactualResponseModel,
+    WinRatePredictionModel,
+    StatePredictionModel,
+    PlanCompareResultModel,
+    RecommendationReportModel,
+    BalanceReportModel,
+    SensitivitySweepReportModel,
+    JobStatusModel,
+    battle_summary,
+    creature_stats,
+    team_stats,
+    hp_timeline,
+    position_heatmap,
+    compute_battle_descriptive_stats,
+    cause_trace,
+    loss_causes,
+    decision_audit,
+    counterfactual,
     trace_defeat_causes,
     run_counterfactual_battle,
-)
-from .analytics.predictive import (
+    predict_win_rate,
+    predict_from_state,
     run_monte_carlo_prediction,
     get_job_progress,
-)
-from .analytics.prescriptive import (
+    set_job_progress,
+    compare_options,
+    recommend_action,
     compare_plan_options,
     recommend_best_actions,
     audit_scenario_balance,
+    balance_report,
+    sensitivity_sweep,
 )
 from .uploads.archive import extract_zip_in_memory
 from .uploads.validate import (
@@ -192,6 +221,59 @@ def get_battle_details(battle_id: str):
     }
 
 
+# --- Analytics Endpoints ---
+
+@app.get("/api/battles/{battle_id}/analytics/summary", response_model=BattleSummaryModel)
+def get_battle_summary_endpoint(battle_id: str):
+    battle = db.get_battle(battle_id)
+    if not battle:
+        raise HTTPException(status_code=404, detail=f"Battle '{battle_id}' not found")
+    return battle_summary(battle)
+
+
+@app.get("/api/battles/{battle_id}/analytics/creatures", response_model=List[CreatureStatsModel])
+def get_battle_creatures_analytics_endpoint(battle_id: str):
+    battle = db.get_battle(battle_id)
+    if not battle:
+        raise HTTPException(status_code=404, detail=f"Battle '{battle_id}' not found")
+    return creature_stats(battle)
+
+
+@app.get("/api/battles/{battle_id}/analytics/timeline", response_model=HPTimelineModel)
+def get_battle_timeline_endpoint(battle_id: str):
+    battle = db.get_battle(battle_id)
+    if not battle:
+        raise HTTPException(status_code=404, detail=f"Battle '{battle_id}' not found")
+    return hp_timeline(battle)
+
+
+@app.get("/api/battles/{battle_id}/analytics/heatmap", response_model=PositionHeatmapModel)
+def get_battle_heatmap_endpoint(battle_id: str):
+    battle = db.get_battle(battle_id)
+    if not battle:
+        raise HTTPException(status_code=404, detail=f"Battle '{battle_id}' not found")
+    return position_heatmap(battle)
+
+
+@app.get("/api/battles/{battle_id}/analytics/cause-trace", response_model=CauseTraceModel)
+def get_battle_cause_trace_endpoint(battle_id: str):
+    battle = db.get_battle(battle_id)
+    if not battle:
+        raise HTTPException(status_code=404, detail=f"Battle '{battle_id}' not found")
+    return cause_trace(battle)
+
+
+@app.get("/api/battles/{battle_id}/analytics/decisions", response_model=DecisionAuditReportModel)
+def get_battle_decisions_audit_endpoint(
+    battle_id: str,
+    threshold: float = Query(0.15, ge=0.0, le=1.0),
+):
+    battle = db.get_battle(battle_id)
+    if not battle:
+        raise HTTPException(status_code=404, detail=f"Battle '{battle_id}' not found")
+    return decision_audit(battle, threshold)
+
+
 @app.get("/api/battles/{battle_id}/analytics/descriptive")
 def get_battle_descriptive_analytics(battle_id: str):
     battle = db.get_battle(battle_id)
@@ -208,7 +290,7 @@ def get_battle_diagnostic_analytics(battle_id: str):
     return trace_defeat_causes(battle)
 
 
-@app.post("/api/battles/{battle_id}/counterfactual")
+@app.post("/api/battles/{battle_id}/counterfactual", response_model=CounterfactualResponseModel)
 def rerun_battle_counterfactual(battle_id: str, req: CounterfactualRequest):
     battle = db.get_battle(battle_id)
     if not battle:
@@ -221,22 +303,50 @@ def rerun_battle_counterfactual(battle_id: str, req: CounterfactualRequest):
     player_creatures = [db.get_creature(cid) for cid in battle.player_team if db.get_creature(cid)]
     enemy_creatures = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
 
-    result = run_counterfactual_battle(
-        original_battle=battle,
+    result = counterfactual(
+        battle=battle,
+        change=req,
         scenario=scenario,
         player_creatures=player_creatures,
         enemy_creatures=enemy_creatures,
-        cf_request=req,
     )
     return result
 
 
-# --- Plan and Author ---
+@app.get("/api/analytics/team-stats", response_model=List[TeamStatsModel])
+def get_aggregate_team_stats(
+    scenario_id: Optional[str] = Query(None),
+    source: Optional[str] = Query("both"),
+):
+    source_filter = None if source == "both" else source
+    battles = db.get_battles(scenario_id=scenario_id, source_filter=source_filter, include_events=False)
+    return team_stats(battles)
+
+
+@app.get("/api/analytics/loss-causes", response_model=LossCausesReportModel)
+def get_aggregate_loss_causes(
+    scenario_id: Optional[str] = Query(None),
+    source: Optional[str] = Query("both"),
+):
+    source_filter = None if source == "both" else source
+    battles = db.get_battles(scenario_id=scenario_id, source_filter=source_filter, include_events=True)
+    return loss_causes(battles, scenario_id=scenario_id, source=source or "both")
+
+
+# --- Plan, Author, and Jobs ---
+
+class AuthorSensitivityRequest(BaseModel):
+    parameter: Literal["ticks", "starting_coins", "hazard_damage"] = "ticks"
+    values: List[Any] = Field(default_factory=lambda: [20, 30, 40, 50, 60])
+    seed_count: int = Field(default=30, ge=5, le=500)
+
+
 @app.post("/api/plan/predict")
 def predict_plan_outcomes(
     req: PlanPredictRequest,
     background_tasks: BackgroundTasks,
     async_mode: bool = False,
+    include_mismatched: bool = False,
 ):
     scenario = db.get_scenario(req.scenario_id)
     if not scenario:
@@ -251,56 +361,124 @@ def predict_plan_outcomes(
 
     enemy_creatures = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
 
-    job_id = str(uuid.uuid4())
-    if async_mode or req.seed_count > 1000:
-        background_tasks.add_task(
-            run_monte_carlo_prediction,
-            scenario,
-            player_creatures,
-            enemy_creatures,
-            req.seed_count,
-            req.calibrate_with_upload_id,
-            job_id,
+    calibrate_battles = None
+    mismatched_ids = set()
+    if req.calibrate_with_upload_id:
+        raw_battles = db.get_battles(
+            scenario_id=req.scenario_id,
+            source_filter=f"upload:{req.calibrate_with_upload_id}",
+            include_events=True,
         )
-        return {"job_id": job_id, "status": "started", "progress": 0.0}
+        for b in raw_battles:
+            st = verify_battle_replay(b)
+            if st.get("status") == "mismatch":
+                mismatched_ids.add(b.battle_id)
+        calibrate_battles = raw_battles
 
-    # Synchronous calculation
-    res = run_monte_carlo_prediction(
+    job_id = str(uuid.uuid4())
+    is_long_running = async_mode or req.seed_count > 500
+
+    if is_long_running:
+        set_job_progress(job_id, 0.05, status="queued")
+
+        def _predict_task():
+            set_job_progress(job_id, 0.2, status="running")
+            res = predict_win_rate(
+                scenario=scenario,
+                team=player_creatures,
+                seed_count=req.seed_count,
+                base_seed=1000,
+                enemy_creatures=enemy_creatures,
+                calibrate_with_battles=calibrate_battles,
+                include_mismatched=include_mismatched,
+                mismatched_battle_ids=mismatched_ids,
+            )
+            set_job_progress(job_id, 1.0, status="completed", result=res.model_dump())
+
+        background_tasks.add_task(_predict_task)
+        return {"job_id": job_id, "status": "queued", "progress": 0.05}
+
+    pred_res = predict_win_rate(
         scenario=scenario,
-        player_creatures=player_creatures,
-        enemy_creatures=enemy_creatures,
+        team=player_creatures,
         seed_count=req.seed_count,
-        calibrate_with_upload_id=req.calibrate_with_upload_id,
-        job_id=job_id,
+        base_seed=1000,
+        enemy_creatures=enemy_creatures,
+        calibrate_with_battles=calibrate_battles,
+        include_mismatched=include_mismatched,
+        mismatched_battle_ids=mismatched_ids,
     )
-    return res
-
-
-@app.get("/api/plan/progress/{job_id}")
-def check_job_progress(job_id: str):
-    prog = get_job_progress(job_id)
-    if not prog:
-        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
-    return prog
+    return pred_res
 
 
 @app.post("/api/plan/compare")
-def compare_plan_alternatives(req: PlanCompareRequest):
+def compare_plan_alternatives(
+    req: PlanCompareRequest,
+    background_tasks: BackgroundTasks,
+    async_mode: bool = False,
+):
     scenario = db.get_scenario(req.scenario_id)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
-    return compare_plan_options(scenario, [o.model_dump() for o in req.options], req.seed_count)
+
+    all_c = {c.id: c for c in db.get_all_creatures()}
+    enemy_c = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
+    default_team = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
+
+    job_id = str(uuid.uuid4())
+    is_long_running = async_mode or len(req.options) > 5
+
+    if is_long_running:
+        set_job_progress(job_id, 0.05, status="queued")
+
+        def _compare_task():
+            set_job_progress(job_id, 0.2, status="running")
+            models = compare_options(
+                scenario=scenario,
+                team=default_team,
+                options=[o.model_dump() for o in req.options],
+                seed_count=req.seed_count,
+                enemy_creatures=enemy_c,
+                all_creatures_map=all_c,
+            )
+            set_job_progress(job_id, 1.0, status="completed", result=[m.model_dump() for m in models])
+
+        background_tasks.add_task(_compare_task)
+        return {"job_id": job_id, "status": "queued", "progress": 0.05}
+
+    models = compare_options(
+        scenario=scenario,
+        team=default_team,
+        options=[o.model_dump() for o in req.options],
+        seed_count=req.seed_count,
+        enemy_creatures=enemy_c,
+        all_creatures_map=all_c,
+    )
+    return models
 
 
-@app.post("/api/plan/recommend")
+@app.post("/api/plan/recommend", response_model=RecommendationReportModel)
 def recommend_plan_actions(req: PlanRecommendRequest):
     scenario = db.get_scenario(req.scenario_id)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
-    return recommend_best_actions(scenario, req.team, req.current_coins)
+    all_c = {c.id: c for c in db.get_all_creatures()}
+    state = {
+        "player_team": req.team,
+        "coins": req.current_coins,
+        "current_tick": req.current_tick,
+        "creature_hps": req.creature_hps,
+    }
+    return recommend_action(
+        state=state,
+        candidate_actions=[],
+        scenario=scenario,
+        all_known_creatures=all_c,
+        seed_count=50,
+    )
 
 
-@app.get("/api/author/scenarios/{scenario_id}/balance")
+@app.get("/api/author/scenarios/{scenario_id}/balance", response_model=BalanceReportModel)
 def audit_scenario_game_balance(
     scenario_id: str,
     calibrate_with_upload_id: Optional[str] = Query(None),
@@ -308,7 +486,139 @@ def audit_scenario_game_balance(
     scenario = db.get_scenario(scenario_id)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
-    return audit_scenario_balance(scenario, calibrate_with_upload_id)
+    all_c = {c.id: c for c in db.get_all_creatures()}
+    upload_battles = None
+    if calibrate_with_upload_id:
+        upload_battles = db.get_battles(scenario_id=scenario_id, source_filter=f"upload:{calibrate_with_upload_id}")
+    return balance_report(scenario, all_creatures_map=all_c, calibrate_with_battles=upload_battles)
+
+
+@app.post("/api/author/scenarios/{scenario_id}/sensitivity")
+def run_scenario_sensitivity_sweep(
+    scenario_id: str,
+    req: AuthorSensitivityRequest,
+    background_tasks: BackgroundTasks,
+    async_mode: bool = False,
+):
+    scenario = db.get_scenario(scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
+
+    all_c = {c.id: c for c in db.get_all_creatures()}
+    job_id = str(uuid.uuid4())
+    is_long_running = async_mode or len(req.values) > 5
+
+    if is_long_running:
+        set_job_progress(job_id, 0.05, status="queued")
+
+        def _sweep_task():
+            set_job_progress(job_id, 0.2, status="running")
+            rep = sensitivity_sweep(
+                scenario=scenario,
+                parameter=req.parameter,
+                values=req.values,
+                seed_count=req.seed_count,
+                all_creatures_map=all_c,
+            )
+            set_job_progress(job_id, 1.0, status="completed", result=rep.model_dump())
+
+        background_tasks.add_task(_sweep_task)
+        return {"job_id": job_id, "status": "queued", "progress": 0.05}
+
+    return sensitivity_sweep(
+        scenario=scenario,
+        parameter=req.parameter,
+        values=req.values,
+        seed_count=req.seed_count,
+        all_creatures_map=all_c,
+    )
+
+
+@app.get("/api/jobs/{job_id}", response_model=JobStatusModel)
+def get_job_status_endpoint(job_id: str):
+    prog = get_job_progress(job_id)
+    if not prog:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return JobStatusModel(
+        job_id=job_id,
+        status=prog.get("status", "running"),
+        progress=prog.get("progress", 0.0),
+        result=prog.get("result"),
+        error=prog.get("error"),
+    )
+
+
+@app.get("/api/plan/progress/{job_id}")
+def check_job_progress_legacy(job_id: str):
+    prog = get_job_progress(job_id)
+    if not prog:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return prog
+
+
+# --- Heroes Directory Endpoint ---
+
+HERO_LORE = {
+    "ember_fox": {"role": "Burst Striker", "description": "Agile flame fox capable of blazing burst damage and personal flame shielding."},
+    "flame_salamander": {"role": "Fire Bruiser", "description": "Durable amphibious salamander wielding potent flame breath and high baseline attack."},
+    "bubble_toad": {"role": "Tactical Defender", "description": "Support creature specializing in bubble barriers and tide disruption."},
+    "stream_turtle": {"role": "Tank & Sponge", "description": "High-HP aquatic defender built to absorb enemy assaults and secure lane control."},
+    "moss_shroom": {"role": "Healer & Sustain", "description": "Vital team supporter wielding healing spores and sustained petal strikes."},
+    "bramble_hound": {"role": "Speed Skirmisher", "description": "Fast-moving canine capable of flanking enemy lines and applying persistent pressure."},
+    "volt_hedgehog": {"role": "Speed Blitzer", "description": "High-speed electric striker that outpaces opponents and applies tactical stuns."},
+    "spark_finch": {"role": "Swift Scout", "description": "Rapid aerial scout with top-tier initiative for seizing tempo early in battle."},
+    "crag_golem": {"role": "Juggernaut", "description": "Massive rocky titan with unparalleled HP and devastating boulder slams."},
+    "pebble_armadillo": {"role": "Armor Vanguard", "description": "Resilient frontliner boasting rock armor to withstand heavy hazard zones."},
+}
+
+@app.get("/api/heroes")
+def get_heroes_directory():
+    from app.engine.models import BUILTIN_MOVES
+    creatures = db.get_all_creatures(source_filter="builtin")
+    heroes = []
+    for c in creatures:
+        lore = HERO_LORE.get(c.id, {"role": "Tactical Combatant", "description": "Resilient warrior of the Puffcap Kingdom arena."})
+        moves_detail = []
+        for m_id in c.moves:
+            m = BUILTIN_MOVES.get(m_id)
+            if m:
+                moves_detail.append({
+                    "id": m.id,
+                    "name": m.name,
+                    "type": m.type.value if hasattr(m.type, "value") else str(m.type),
+                    "power": m.power,
+                    "accuracy": m.accuracy,
+                    "cost_coins": m.cost_coins,
+                    "target_type": m.target_type,
+                    "effect": m.effect,
+                    "effect_chance": m.effect_chance,
+                })
+            else:
+                moves_detail.append({
+                    "id": m_id,
+                    "name": m_id.replace("_", " ").title(),
+                    "type": c.type.value if hasattr(c.type, "value") else str(c.type),
+                    "power": 30,
+                    "accuracy": 0.95,
+                    "cost_coins": 0,
+                    "target_type": "enemy",
+                    "effect": None,
+                    "effect_chance": 0.0,
+                })
+        heroes.append({
+            "id": c.id,
+            "name": c.name,
+            "type": c.type.value if hasattr(c.type, "value") else str(c.type),
+            "hp": c.hp,
+            "attack": c.attack,
+            "speed": c.speed,
+            "moves": c.moves,
+            "moves_detail": moves_detail,
+            "avatar": c.avatar,
+            "role": lore["role"],
+            "description": lore["description"],
+        })
+    return heroes
 
 
 # --- Uploads ---
@@ -514,4 +824,14 @@ def export_kind_data(
 # --- Serve Built Frontend Static Files in Production ---
 dist_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if dist_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="assets")
     app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend")
+
+
+@app.exception_handler(404)
+async def spa_404_handler(request, exc):
+    if not request.url.path.startswith("/api"):
+        index_file = dist_dir / "index.html"
+        if index_file.exists():
+            return Response(content=index_file.read_bytes(), media_type="text/html")
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})

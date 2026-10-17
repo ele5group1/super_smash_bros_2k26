@@ -93,15 +93,28 @@ class AIDecisionMaker:
     ) -> Dict[str, Any]:
         # Aggressive prioritizes highest raw power and lowest remaining enemy HP
         best_move = max(moves, key=lambda m: m.power)
-        # Target enemy with lowest HP
         sorted_enemies = sorted(enemies, key=lambda e: e["hp"])
         target = sorted_enemies[0]
+
+        options: List[Dict[str, Any]] = []
+        for m in moves:
+            for e in enemies:
+                # Score based on power and target vulnerability
+                raw_score = (m.power / 60.0) * 0.6 + (1.0 - min(1.0, e["hp"] / max(1, e["max_hp"]))) * 0.4
+                norm_score = round(min(1.0, max(0.05, raw_score)), 2)
+                options.append({"action": f"{m.name} -> {e['id']}", "score": norm_score})
+
+        options.sort(key=lambda o: o["score"], reverse=True)
+        chosen_str = f"{best_move.name} -> {target['id']}"
+
         return {
             "action_type": "cast_move",
             "target_lane": None,
             "move": best_move,
             "target": target,
             "cost": best_move.cost_coins,
+            "options_considered": options,
+            "chosen_action": chosen_str,
         }
 
     def _choose_defensive(
@@ -112,33 +125,52 @@ class AIDecisionMaker:
         enemies: List[Dict[str, Any]],
         rng: SeededRNG,
     ) -> Dict[str, Any]:
-        # Check if actor or ally is in danger
         actor_hp_pct = actor["hp"] / max(1, actor["creature"].hp)
         shield_or_heal = [m for m in moves if m.effect in ("shield", "heal")]
 
+        options: List[Dict[str, Any]] = []
+
         if actor_hp_pct < 0.5 and shield_or_heal:
-            # Pick shield/heal
             chosen = shield_or_heal[0]
             target = actor if chosen.target_type == "self" else sorted(allies, key=lambda a: a["hp"])[0]
+            chosen_str = f"{chosen.name} -> {target['id']}"
+
+            options.append({"action": chosen_str, "score": 0.95})
+            for m in moves:
+                if m != chosen and enemies:
+                    options.append({"action": f"{m.name} -> {enemies[0]['id']}", "score": 0.45})
+
             return {
                 "action_type": "cast_move",
                 "target_lane": None,
                 "move": chosen,
                 "target": target,
                 "cost": chosen.cost_coins,
+                "options_considered": options,
+                "chosen_action": chosen_str,
             }
 
-        # Otherwise target enemy with highest attack to weaken them
         highest_atk_enemy = max(enemies, key=lambda e: e["creature"].attack)
-        # Prefer moves with accuracy >= 0.9
         safe_moves = [m for m in moves if m.accuracy >= 0.9] or moves
         chosen = max(safe_moves, key=lambda m: m.power)
+        chosen_str = f"{chosen.name} -> {highest_atk_enemy['id']}"
+
+        for m in moves:
+            for e in enemies:
+                raw_score = (m.power / 60.0) * 0.5 + (m.accuracy * 0.3) + (e["creature"].attack / 60.0) * 0.2
+                norm_score = round(min(1.0, max(0.05, raw_score)), 2)
+                options.append({"action": f"{m.name} -> {e['id']}", "score": norm_score})
+
+        options.sort(key=lambda o: o["score"], reverse=True)
+
         return {
             "action_type": "cast_move",
             "target_lane": None,
             "move": chosen,
             "target": highest_atk_enemy,
             "cost": chosen.cost_coins,
+            "options_considered": options,
+            "chosen_action": chosen_str,
         }
 
     def _choose_opportunistic(
@@ -148,10 +180,11 @@ class AIDecisionMaker:
         enemies: List[Dict[str, Any]],
         rng: SeededRNG,
     ) -> Dict[str, Any]:
-        # Opportunistic calculates type effectiveness * power for every (move, enemy) pair
         best_score = -1.0
         best_move = moves[0]
         best_target = enemies[0]
+
+        options: List[Dict[str, Any]] = []
 
         for m in moves:
             for e in enemies:
@@ -159,14 +192,19 @@ class AIDecisionMaker:
                 move_type = m.type.value if hasattr(m.type, "value") else str(m.type)
                 type_mult = TYPE_CHART.get(move_type, {}).get(target_type, 1.0)
                 
-                # Bonus if target is low HP and this can finish them off
                 kill_bonus = 1.5 if (m.power * type_mult >= e["hp"]) else 1.0
                 score = m.power * type_mult * m.accuracy * kill_bonus
+
+                norm_score = round(min(1.0, max(0.05, score / 120.0)), 2)
+                options.append({"action": f"{m.name} -> {e['id']}", "score": norm_score})
 
                 if score > best_score:
                     best_score = score
                     best_move = m
                     best_target = e
+
+        options.sort(key=lambda o: o["score"], reverse=True)
+        chosen_str = f"{best_move.name} -> {best_target['id']}"
 
         return {
             "action_type": "cast_move",
@@ -174,4 +212,7 @@ class AIDecisionMaker:
             "move": best_move,
             "target": best_target,
             "cost": best_move.cost_coins,
+            "options_considered": options,
+            "chosen_action": chosen_str,
         }
+

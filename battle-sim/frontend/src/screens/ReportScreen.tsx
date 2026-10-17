@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   api,
   BattleRecord,
@@ -11,9 +11,18 @@ import {
 import { TickTimeline } from "../components/TickTimeline";
 import { Heatmap } from "../components/Heatmap";
 import { CauseList } from "../components/CauseList";
+import { Card, CardHeader, CardTitle, CardBody } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Tabs, TabItem } from "../components/ui/Tabs";
+import { Skeleton } from "../components/ui/Skeleton";
+import { EmptyState } from "../components/ui/EmptyState";
+import { useToast } from "../components/ui/Toast";
 
 export const ReportScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { success, error: toastError } = useToast();
 
   const [battle, setBattle] = useState<BattleRecord | null>(null);
   const [replayStatus, setReplayStatus] = useState<ReplayStatus | null>(null);
@@ -23,7 +32,10 @@ export const ReportScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Counterfactual rerun state
+  // Segmented tab control
+  const [activeTab, setActiveTab] = useState<string>("summary");
+
+  // Counterfactual state
   const [cfRunning, setCfRunning] = useState<boolean>(false);
   const [cfResult, setCfResult] = useState<any | null>(null);
 
@@ -69,28 +81,40 @@ export const ReportScreen: React.FC = () => {
         target_lane: 1,
       });
       setCfResult(res);
+      success("Counterfactual Rerun Complete", `Shifted outcome to ${res.new_outcome.toUpperCase()}`);
     } catch (e: any) {
-      alert("Counterfactual execution failed: " + e.message);
+      toastError("Counterfactual Error", e.message);
     } finally {
       setCfRunning(false);
     }
   };
 
+  const handleJumpToTick = (tick: number) => {
+    if (!battle) return;
+    navigate(`/battles/${battle.battle_id}`, { state: { jumpTick: tick } });
+  };
+
   if (isLoading) {
     return (
-      <div style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
-        <h3>Assembling analytics report...</h3>
+      <div className="page-container">
+        <Skeleton variant="rectangular" width="100%" height={140} style={{ marginBottom: "var(--space-6)" }} />
+        <Skeleton variant="text" width="400px" height={32} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "var(--space-4)", marginTop: "var(--space-4)" }}>
+          <Skeleton variant="card" count={3} />
+        </div>
       </div>
     );
   }
 
   if (errorMsg || !battle) {
     return (
-      <div className="arcade-panel" style={{ padding: "2rem", textAlign: "center" }}>
-        <h3 style={{ color: "#ef4444", marginBottom: "1rem" }}>{errorMsg || "Battle not found"}</h3>
-        <Link to="/" className="btn-arcade btn-primary">
-          Back to Roster
-        </Link>
+      <div className="page-container">
+        <EmptyState
+          title="Analytics Report Unavailable"
+          description={errorMsg || "Could not find battle log."}
+          actionLabel="Return to Scenarios"
+          onAction={() => navigate("/scenarios")}
+        />
       </div>
     );
   }
@@ -98,174 +122,221 @@ export const ReportScreen: React.FC = () => {
   const isWin = battle.outcome === "win";
   const isUploaded = battle.source.startsWith("upload:");
 
+  const reportTabs: TabItem[] = [
+    { id: "summary", label: "Summary" },
+    { id: "creatures", label: "Creatures", badge: descriptive?.creatures_stats.length },
+    { id: "timeline", label: "Timeline" },
+    { id: "heatmap", label: "Heatmap" },
+    { id: "cause_trace", label: "Cause Trace", badge: diagnostic?.turning_points.length },
+  ];
+
   return (
-    <div>
-      {/* Top Banner */}
-      <div
-        className="arcade-panel"
+    <div className="page-container">
+      {/* 1. Results Banner with headline number */}
+      <Card
         style={{
-          background: isWin
-            ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(22, 27, 34, 0.95) 100%)"
-            : "linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(22, 27, 34, 0.95) 100%)",
-          borderColor: isWin ? "var(--primary-green)" : "var(--primary-red)",
-          padding: "1.5rem",
-          marginBottom: "1.5rem",
+          borderLeft: `6px solid ${isWin ? "var(--color-success)" : "var(--color-error)"}`,
+          marginBottom: "var(--space-6)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.25rem" }}>
-              <h2
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontWeight: 900,
-                  fontSize: "2.25rem",
-                  color: isWin ? "#10b981" : "#ef4444",
-                }}
-              >
-                {isWin ? "VICTORY ACHIEVED" : "DEFEAT SUFFERED"}
-              </h2>
-              <span
-                style={{
-                  background: isUploaded ? "#6366f1" : "var(--primary-blue)",
-                  color: "#fff",
-                  fontWeight: 800,
-                  fontSize: "0.75rem",
-                  padding: "4px 10px",
-                  borderRadius: "6px",
-                  textTransform: "uppercase",
-                }}
-              >
-                {isUploaded ? "Uploaded Battle" : "Simulated Engine"}
-              </span>
-            </div>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-              Scenario: <strong style={{ color: "#fff" }}>{battle.scenario_id}</strong> • Ticks Elapsed:{" "}
-              <strong style={{ color: "#fff" }}>{battle.ticks_elapsed}</strong> • Survivors:{" "}
-              <strong style={{ color: "#fff" }}>{battle.survivors}</strong> • Coins Remaining:{" "}
-              <strong style={{ color: "var(--coin-gold)" }}>{battle.coins_left}</strong>
-            </p>
-          </div>
-
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <Link to={`/battle/${battle.battle_id}`} className="btn-arcade btn-secondary">
-              📺 View Arena Replay
-            </Link>
-            <Link to="/" className="btn-arcade btn-primary">
-              ⚔ New Scenario
-            </Link>
-          </div>
-        </div>
-
-        {/* Replay Verification status for Uploaded Battles */}
-        {replayStatus && (
-          <div
-            style={{
-              marginTop: "1rem",
-              background: "var(--bg-surface)",
-              border: `1px solid ${replayStatus.status === "match" ? "#10b981" : "#f59e0b"}`,
-              padding: "0.75rem 1rem",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              fontSize: "0.85rem",
-            }}
-          >
-            <span style={{ fontWeight: 800, color: replayStatus.status === "match" ? "#10b981" : "#f59e0b" }}>
-              REPLAY CHECK: {replayStatus.status.toUpperCase()}
-            </span>
-            <span style={{ color: "var(--text-main)" }}>{replayStatus.details}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Creature Cards Stats Grid */}
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 800, color: "#fff", marginBottom: "0.75rem" }}>
-          Creature Performance & Casualties
-        </h3>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: "1rem",
-          }}
-        >
-          {descriptive?.creatures_stats.map((stat) => {
-            const c = creaturesMap[stat.id];
-            return (
-              <div key={stat.id} className="arcade-panel" style={{ padding: "1rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <span style={{ fontWeight: 800, color: "#fff" }}>{c?.name || stat.id}</span>
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      fontWeight: 800,
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      background: stat.survived ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
-                      color: stat.survived ? "#10b981" : "#ef4444",
-                    }}
-                  >
-                    {stat.survived ? "SURVIVED" : "KNOCKED OUT"}
-                  </span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                  <div>Dealt: <strong style={{ color: "#fff" }}>{stat.damage_dealt} dmg</strong></div>
-                  <div>Taken: <strong style={{ color: "#fff" }}>{stat.damage_taken} dmg</strong></div>
-                  <div>KOs Scored: <strong style={{ color: "var(--coin-gold)" }}>{stat.kos}</strong></div>
-                  <div>Hazard Hits: <strong style={{ color: "var(--hazard-purple)" }}>{stat.hazard_ticks}</strong></div>
-                </div>
+        <CardBody>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-4)" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-2)" }}>
+                <span className="text-display" style={{ color: isWin ? "var(--color-success)" : "var(--color-error)" }}>
+                  {isWin ? "VICTORY" : "DEFEAT"}
+                </span>
+                <Badge variant={isUploaded ? "info" : "neutral"} size="md">
+                  {isUploaded ? "Uploaded Battle" : "Simulated Engine"}
+                </Badge>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Descriptive Analytics: Timelines & Heatmap */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
-        {descriptive && <TickTimeline timeline={descriptive.hp_timeline} playerTeam={battle.player_team} />}
-        {descriptive && <Heatmap heatmap={descriptive.heatmap} />}
-      </div>
+              {/* Headline Number */}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)" }}>
+                <span className="text-display" style={{ fontSize: "36px", color: "var(--text-primary)" }}>
+                  {battle.survivors}
+                </span>
+                <span className="text-muted text-body">
+                  Allied Survivors ({battle.ticks_elapsed} ticks • {battle.coins_left} coins left)
+                </span>
+              </div>
+            </div>
 
-      {/* Diagnostic Analytics: Defeat Cause & Counterfactual */}
-      {diagnostic && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          {cfRunning && (
-            <div style={{ color: "var(--coin-gold)", marginBottom: "0.5rem", fontWeight: 700 }}>
-              ⚡ Rerunning counterfactual simulation with alternative decision...
+            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+              <Button
+                variant="primary"
+                onClick={() => navigate(`/battles/${battle.battle_id}`)}
+              >
+                📺 Watch Arena Replay
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => handleRerunCounterfactual(1, "ember_fox")}
+                isLoading={cfRunning}
+              >
+                ⚡ Try a Change
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/scenarios")}
+              >
+                ↺ New Scenario
+              </Button>
+            </div>
+          </div>
+
+          {/* Replay Verification status for Uploaded Battles */}
+          {replayStatus && (
+            <div
+              style={{
+                marginTop: "var(--space-4)",
+                padding: "var(--space-3) var(--space-4)",
+                background: "var(--bg-muted)",
+                borderRadius: "var(--radius-md)",
+                border: `1px solid ${replayStatus.status === "match" ? "var(--color-success)" : "var(--color-warning)"}`,
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--space-3)",
+              }}
+            >
+              <Badge variant={replayStatus.status === "match" ? "success" : "warning"}>
+                REPLAY MATCH: {replayStatus.status.toUpperCase()}
+              </Badge>
+              <span className="text-small">{replayStatus.details}</span>
             </div>
           )}
-          <CauseList
-            diagnostic={diagnostic}
-            onCounterfactual={(t, a) => handleRerunCounterfactual(t, a)}
-          />
+        </CardBody>
+      </Card>
+
+      {/* Counterfactual Diff Box if active */}
+      {cfResult && (
+        <Card style={{ borderColor: "var(--color-warning)", background: "var(--color-warning-bg)", marginBottom: "var(--space-6)" }}>
+          <CardBody>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
+              <h3 className="text-h3" style={{ color: "var(--color-warning)" }}>
+                Counterfactual Before & After Diff
+              </h3>
+              <Button variant="ghost" size="sm" onClick={() => setCfResult(null)}>
+                Dismiss
+              </Button>
+            </div>
+
+            <p style={{ fontSize: "var(--font-size-body)", marginBottom: "var(--space-3)" }}>
+              Outcome shifted from <strong>{cfResult.original_outcome.toUpperCase()}</strong> to{" "}
+              <strong style={{ color: cfResult.new_outcome === "win" ? "var(--color-success)" : "var(--color-error)" }}>
+                {cfResult.new_outcome.toUpperCase()}
+              </strong>{" "}
+              (first divergent tick: T{cfResult.first_differing_tick}).
+            </p>
+
+            <div style={{ display: "flex", gap: "var(--space-6)", fontSize: "var(--font-size-small)" }}>
+              <div>Survivors Diff: <strong>{cfResult.survivors_diff >= 0 ? `+${cfResult.survivors_diff}` : cfResult.survivors_diff}</strong></div>
+              <div>Ticks Diff: <strong>{cfResult.ticks_diff}</strong></div>
+              <div>Coins Diff: <strong>{cfResult.coins_diff}</strong></div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* 2. Segmented Tabs Control */}
+      <div style={{ marginBottom: "var(--space-6)" }}>
+        <Tabs
+          items={reportTabs}
+          activeId={activeTab}
+          onChange={setActiveTab}
+          variant="segment"
+        />
+      </div>
+
+      {/* Tab Panels */}
+      {activeTab === "summary" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--space-4)" }}>
+          <Card>
+            <CardHeader><CardTitle>Combat Summary</CardTitle></CardHeader>
+            <CardBody>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Scenario ID:</span>
+                  <strong>{battle.scenario_id}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Total Ticks:</span>
+                  <strong>{battle.ticks_elapsed}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Player Team Size:</span>
+                  <strong>{battle.player_team.length} creatures</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Final Outcome:</span>
+                  <Badge variant={isWin ? "success" : "error"}>{battle.outcome}</Badge>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Turn & Hazard Stats</CardTitle></CardHeader>
+            <CardBody>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Total Events Logged:</span>
+                  <strong>{battle.events.length}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Deterministic Seed:</span>
+                  <code>{battle.seed}</code>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span className="text-muted">Engine Version:</span>
+                  <span>v{battle.engine_version}</span>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       )}
 
-      {/* Counterfactual Results Diff Box */}
-      {cfResult && (
-        <div className="arcade-panel" style={{ borderColor: "var(--coin-gold)", background: "rgba(245, 158, 11, 0.05)", padding: "1.25rem", marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <h4 style={{ color: "var(--coin-gold)", fontWeight: 800 }}>Counterfactual Rerun Results</h4>
-            <button onClick={() => setCfResult(null)} className="btn-arcade btn-secondary" style={{ padding: "2px 8px", fontSize: "0.75rem" }}>
-              Dismiss
-            </button>
-          </div>
-          <p style={{ fontSize: "0.9rem", color: "#fff", marginBottom: "0.75rem" }}>
-            Outcome shifted from <strong>{cfResult.original_outcome.toUpperCase()}</strong> to{" "}
-            <strong style={{ color: cfResult.new_outcome === "win" ? "#10b981" : "#ef4444" }}>
-              {cfResult.new_outcome.toUpperCase()}
-            </strong>{" "}
-            (first divergent tick: T{cfResult.first_differing_tick}).
-          </p>
-          <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            <span>Survivors Delta: <strong style={{ color: "#fff" }}>{cfResult.survivors_diff >= 0 ? `+${cfResult.survivors_diff}` : cfResult.survivors_diff}</strong></span>
-            <span>Ticks Delta: <strong style={{ color: "#fff" }}>{cfResult.ticks_diff}</strong></span>
-            <span>Coins Delta: <strong style={{ color: "#fff" }}>{cfResult.coins_diff}</strong></span>
-          </div>
+      {activeTab === "creatures" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "var(--space-4)" }}>
+          {descriptive?.creatures_stats.map((stat) => {
+            const c = creaturesMap[stat.id];
+            return (
+              <Card key={stat.id}>
+                <CardBody>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
+                    <span style={{ fontWeight: "bold" }}>{c?.name || stat.id}</span>
+                    <Badge variant={stat.survived ? "success" : "error"} size="sm">
+                      {stat.survived ? "SURVIVED" : "KNOCKED OUT"}
+                    </Badge>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", fontSize: "var(--font-size-small)", color: "var(--text-muted)" }}>
+                    <div>Damage Dealt: <strong style={{ color: "var(--text-primary)" }}>{stat.damage_dealt}</strong></div>
+                    <div>Damage Taken: <strong style={{ color: "var(--text-primary)" }}>{stat.damage_taken}</strong></div>
+                    <div>KOs Scored: <strong style={{ color: "var(--color-warning)" }}>{stat.kos}</strong></div>
+                    <div>Hazard Ticks: <strong style={{ color: "var(--color-error)" }}>{stat.hazard_ticks}</strong></div>
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
         </div>
+      )}
+
+      {activeTab === "timeline" && descriptive && (
+        <TickTimeline timeline={descriptive.hp_timeline} playerTeam={battle.player_team} />
+      )}
+
+      {activeTab === "heatmap" && descriptive && (
+        <Heatmap heatmap={descriptive.heatmap} />
+      )}
+
+      {activeTab === "cause_trace" && diagnostic && (
+        <CauseList
+          diagnostic={diagnostic}
+          onCounterfactual={handleRerunCounterfactual}
+          onJumpToTick={handleJumpToTick}
+        />
       )}
     </div>
   );

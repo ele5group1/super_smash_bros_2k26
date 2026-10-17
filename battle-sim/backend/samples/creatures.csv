@@ -1,4 +1,4 @@
 id,name,type,hp,attack,speed,moves
-sample_mario,Mario Striker,fire,150,52,60,fireball;super_jump
-sample_pikachu,Pikachu Spark,electric,120,54,85,thunderbolt;quick_attack
 sample_puff_bird,Puff Bird,electric,125,42,68,spark_zap;charge_dash
+sample_vine_sprout,Vine Sprout,grass,135,36,45,vine_whip;spore_heal
+sample_magma_slug,Magma Slug,fire,155,48,32,flame_spit;fire_shield

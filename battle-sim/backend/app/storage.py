@@ -19,187 +19,6 @@ from .engine.models import (
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "battle_sim.db"
 
 BUILTIN_CREATURES_DATA = [
-    # --- Super Mario & Pokémon Heroes ---
-    {
-        "id": "mario",
-        "name": "Mario",
-        "type": "fire",
-        "hp": 150,
-        "attack": 52,
-        "speed": 60,
-        "moves": ["fireball", "super_jump", "ground_pound"],
-        "source": "builtin",
-        "avatar": "mario",
-    },
-    {
-        "id": "pikachu",
-        "name": "Pikachu",
-        "type": "electric",
-        "hp": 120,
-        "attack": 54,
-        "speed": 85,
-        "moves": ["thunderbolt", "quick_attack", "electro_ball"],
-        "source": "builtin",
-        "avatar": "pikachu",
-    },
-    {
-        "id": "charizard",
-        "name": "Charizard",
-        "type": "fire",
-        "hp": 165,
-        "attack": 58,
-        "speed": 70,
-        "moves": ["flamethrower", "fire_spin", "dragon_claw"],
-        "source": "builtin",
-        "avatar": "charizard",
-    },
-    {
-        "id": "blastoise",
-        "name": "Blastoise",
-        "type": "water",
-        "hp": 185,
-        "attack": 48,
-        "speed": 45,
-        "moves": ["hydro_pump", "water_gun", "skull_bash"],
-        "source": "builtin",
-        "avatar": "blastoise",
-    },
-    {
-        "id": "venusaur",
-        "name": "Venusaur",
-        "type": "grass",
-        "hp": 180,
-        "attack": 47,
-        "speed": 40,
-        "moves": ["solar_beam", "vine_whip", "razor_leaf"],
-        "source": "builtin",
-        "avatar": "venusaur",
-    },
-    {
-        "id": "luigi",
-        "name": "Luigi",
-        "type": "grass",
-        "hp": 140,
-        "attack": 48,
-        "speed": 64,
-        "moves": ["green_fireball", "super_jump", "poltergust_blast"],
-        "source": "builtin",
-        "avatar": "luigi",
-    },
-    {
-        "id": "yoshi",
-        "name": "Yoshi",
-        "type": "grass",
-        "hp": 145,
-        "attack": 46,
-        "speed": 72,
-        "moves": ["tongue_lash", "egg_throw", "flutter_jump"],
-        "source": "builtin",
-        "avatar": "yoshi",
-    },
-    {
-        "id": "gengar",
-        "name": "Gengar",
-        "type": "stone",
-        "hp": 130,
-        "attack": 56,
-        "speed": 75,
-        "moves": ["shadow_ball", "hypnosis", "sludge_bomb"],
-        "source": "builtin",
-        "avatar": "gengar",
-    },
-    {
-        "id": "onix",
-        "name": "Onix",
-        "type": "stone",
-        "hp": 200,
-        "attack": 45,
-        "speed": 30,
-        "moves": ["rock_throw", "boulder_slam", "rock_armor"],
-        "source": "builtin",
-        "avatar": "onix",
-    },
-    {
-        "id": "raichu",
-        "name": "Raichu",
-        "type": "electric",
-        "hp": 135,
-        "attack": 55,
-        "speed": 80,
-        "moves": ["thunderbolt", "spark_zap", "electro_ball"],
-        "source": "builtin",
-        "avatar": "raichu",
-    },
-
-    # --- Super Mario & Pokémon Enemies & Bosses ---
-    {
-        "id": "bowser",
-        "name": "King Bowser",
-        "type": "fire",
-        "hp": 300,
-        "attack": 62,
-        "speed": 35,
-        "moves": ["fire_breath", "whirling_fortress", "bowser_bomb"],
-        "source": "builtin",
-        "avatar": "bowser",
-    },
-    {
-        "id": "mewtwo",
-        "name": "Mewtwo",
-        "type": "stone",
-        "hp": 260,
-        "attack": 65,
-        "speed": 72,
-        "moves": ["psystrike", "shadow_ball", "aura_sphere"],
-        "source": "builtin",
-        "avatar": "mewtwo",
-    },
-    {
-        "id": "koopa_troopa",
-        "name": "Koopa Troopa",
-        "type": "water",
-        "hp": 125,
-        "attack": 40,
-        "speed": 45,
-        "moves": ["shell_spin", "spout_splash"],
-        "source": "builtin",
-        "avatar": "koopa",
-    },
-    {
-        "id": "goomba",
-        "name": "Goomba",
-        "type": "grass",
-        "hp": 105,
-        "attack": 36,
-        "speed": 40,
-        "moves": ["headbonk", "vine_whip"],
-        "source": "builtin",
-        "avatar": "goomba",
-    },
-    {
-        "id": "piranha_plant",
-        "name": "Piranha Plant",
-        "type": "grass",
-        "hp": 135,
-        "attack": 44,
-        "speed": 42,
-        "moves": ["vine_whip", "fireball"],
-        "source": "builtin",
-        "avatar": "piranha",
-    },
-    {
-        "id": "electabuzz",
-        "name": "Electabuzz",
-        "type": "electric",
-        "hp": 140,
-        "attack": 50,
-        "speed": 68,
-        "moves": ["thunderbolt", "spark_zap"],
-        "source": "builtin",
-        "avatar": "electabuzz",
-    },
-
-    # --- Compatibility creatures ---
     {
         "id": "ember_fox",
         "name": "Ember Fox",
@@ -464,6 +283,12 @@ class Storage:
                 ko BOOLEAN DEFAULT 0,
                 coin_change INTEGER DEFAULT 0,
                 event_type TEXT NOT NULL,
+                lane INTEGER DEFAULT 0,
+                tile INTEGER DEFAULT 0,
+                coin_before INTEGER DEFAULT 0,
+                coin_after INTEGER DEFAULT 0,
+                options_considered_json TEXT,
+                chosen_action TEXT,
                 FOREIGN KEY (battle_id) REFERENCES battles(battle_id) ON DELETE CASCADE
             );
 
@@ -481,10 +306,31 @@ class Storage:
             );
             """)
 
+            # Ensure columns exist on battle_events for migration compatibility
+            cols = {row["name"] for row in conn.execute("PRAGMA table_info(battle_events)").fetchall()}
+            if "lane" not in cols:
+                conn.execute("ALTER TABLE battle_events ADD COLUMN lane INTEGER DEFAULT 0")
+            if "tile" not in cols:
+                conn.execute("ALTER TABLE battle_events ADD COLUMN tile INTEGER DEFAULT 0")
+            if "coin_before" not in cols:
+                conn.execute("ALTER TABLE battle_events ADD COLUMN coin_before INTEGER DEFAULT 0")
+            if "coin_after" not in cols:
+                conn.execute("ALTER TABLE battle_events ADD COLUMN coin_after INTEGER DEFAULT 0")
+            if "options_considered_json" not in cols:
+                conn.execute("ALTER TABLE battle_events ADD COLUMN options_considered_json TEXT")
+            if "chosen_action" not in cols:
+                conn.execute("ALTER TABLE battle_events ADD COLUMN chosen_action TEXT")
+
         self._seed_builtins()
 
     def _seed_builtins(self) -> None:
         with self.get_conn() as conn:
+            valid_ids = [c["id"] for c in BUILTIN_CREATURES_DATA]
+            placeholders = ",".join("?" for _ in valid_ids)
+            conn.execute(
+                f"DELETE FROM creatures WHERE source = 'builtin' AND id NOT IN ({placeholders})",
+                valid_ids,
+            )
             for c in BUILTIN_CREATURES_DATA:
                 conn.execute(
                     """
@@ -723,11 +569,14 @@ class Storage:
             # Delete old events if replacing
             conn.execute("DELETE FROM battle_events WHERE battle_id = ?", (b.battle_id,))
             for ev in b.events:
+                lane = ev.position.get("lane", 0) if isinstance(ev.position, dict) else getattr(ev.position, "lane", 0)
+                tile = ev.position.get("tile", 0) if isinstance(ev.position, dict) else getattr(ev.position, "tile", 0)
+                opts_json = json.dumps(ev.options_considered) if ev.options_considered else None
                 conn.execute(
                     """
                     INSERT INTO battle_events
-                    (battle_id, tick, actor, action, target, damage, hp_before, hp_after, status_change, hazard_hit, pickup, ko, coin_change, event_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (battle_id, tick, actor, action, target, damage, hp_before, hp_after, status_change, hazard_hit, pickup, ko, coin_change, event_type, lane, tile, coin_before, coin_after, options_considered_json, chosen_action)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         b.battle_id,
@@ -744,6 +593,12 @@ class Storage:
                         1 if ev.ko else 0,
                         ev.coin_change,
                         ev.event_type,
+                        lane,
+                        tile,
+                        ev.coin_before,
+                        ev.coin_after,
+                        opts_json,
+                        ev.chosen_action,
                     ),
                 )
 
@@ -755,25 +610,43 @@ class Storage:
             ev_rows = conn.execute(
                 "SELECT * FROM battle_events WHERE battle_id = ? ORDER BY id ASC", (battle_id,)
             ).fetchall()
-            events = [
-                Event(
-                    battle_id=er["battle_id"],
-                    tick=er["tick"],
-                    actor=er["actor"],
-                    action=er["action"],
-                    target=er["target"],
-                    damage=er["damage"],
-                    hp_before=er["hp_before"],
-                    hp_after=er["hp_after"],
-                    status_change=er["status_change"],
-                    hazard_hit=er["hazard_hit"],
-                    pickup=er["pickup"],
-                    ko=bool(er["ko"]),
-                    coin_change=er["coin_change"],
-                    event_type=er["event_type"],
+            events = []
+            for er in ev_rows:
+                opts = None
+                if "options_considered_json" in er.keys() and er["options_considered_json"]:
+                    try:
+                        opts = json.loads(er["options_considered_json"])
+                    except Exception:
+                        opts = None
+                lane = er["lane"] if "lane" in er.keys() else 0
+                tile = er["tile"] if "tile" in er.keys() else 0
+                cb = er["coin_before"] if "coin_before" in er.keys() else 0
+                ca = er["coin_after"] if "coin_after" in er.keys() else 0
+                chosen = er["chosen_action"] if "chosen_action" in er.keys() else None
+
+                events.append(
+                    Event(
+                        battle_id=er["battle_id"],
+                        tick=er["tick"],
+                        actor=er["actor"],
+                        action=er["action"],
+                        target=er["target"],
+                        damage=er["damage"],
+                        hp_before=er["hp_before"],
+                        hp_after=er["hp_after"],
+                        position={"lane": lane, "tile": tile},
+                        status_change=er["status_change"],
+                        hazard_hit=er["hazard_hit"],
+                        pickup=er["pickup"],
+                        ko=bool(er["ko"]),
+                        coin_before=cb,
+                        coin_after=ca,
+                        coin_change=er["coin_change"],
+                        event_type=er["event_type"],
+                        options_considered=opts,
+                        chosen_action=chosen,
+                    )
                 )
-                for er in ev_rows
-            ]
             return BattleRecord(
                 battle_id=r["battle_id"],
                 scenario_id=r["scenario_id"],
@@ -794,6 +667,7 @@ class Storage:
         self,
         scenario_id: Optional[str] = None,
         source_filter: Optional[str] = None,
+        include_events: bool = False,
     ) -> List[BattleRecord]:
         with self.get_conn() as conn:
             query = "SELECT * FROM battles WHERE 1=1"
@@ -805,10 +679,53 @@ class Storage:
                 query += " AND source = 'simulated'"
             elif source_filter == "uploaded":
                 query += " AND source LIKE 'upload:%'"
+            elif source_filter and source_filter.startswith("upload:"):
+                query += " AND source = ?"
+                params.append(source_filter)
             query += " ORDER BY created_at DESC"
             rows = conn.execute(query, params).fetchall()
             results = []
             for r in rows:
+                events = []
+                if include_events:
+                    ev_rows = conn.execute(
+                        "SELECT * FROM battle_events WHERE battle_id = ? ORDER BY id ASC", (r["battle_id"],)
+                    ).fetchall()
+                    for er in ev_rows:
+                        opts = None
+                        if "options_considered_json" in er.keys() and er["options_considered_json"]:
+                            try:
+                                opts = json.loads(er["options_considered_json"])
+                            except Exception:
+                                opts = None
+                        lane = er["lane"] if "lane" in er.keys() else 0
+                        tile = er["tile"] if "tile" in er.keys() else 0
+                        cb = er["coin_before"] if "coin_before" in er.keys() else 0
+                        ca = er["coin_after"] if "coin_after" in er.keys() else 0
+                        chosen = er["chosen_action"] if "chosen_action" in er.keys() else None
+                        events.append(
+                            Event(
+                                battle_id=er["battle_id"],
+                                tick=er["tick"],
+                                actor=er["actor"],
+                                action=er["action"],
+                                target=er["target"],
+                                damage=er["damage"],
+                                hp_before=er["hp_before"],
+                                hp_after=er["hp_after"],
+                                position={"lane": lane, "tile": tile},
+                                status_change=er["status_change"],
+                                hazard_hit=er["hazard_hit"],
+                                pickup=er["pickup"],
+                                ko=bool(er["ko"]),
+                                coin_before=cb,
+                                coin_after=ca,
+                                coin_change=er["coin_change"],
+                                event_type=er["event_type"],
+                                options_considered=opts,
+                                chosen_action=chosen,
+                            )
+                        )
                 results.append(
                     BattleRecord(
                         battle_id=r["battle_id"],
@@ -822,7 +739,7 @@ class Storage:
                         survivors=r["survivors"],
                         coins_left=r["coins_left"],
                         source=r["source"],
-                        events=[],  # Lightweight summary
+                        events=events,
                         created_at=r["created_at"],
                     )
                 )

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { api, BattleRecord, Scenario, Creature } from "../api";
 import { Arena } from "../components/Arena";
+import { Card, CardHeader, CardTitle, CardBody } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { Table, Column } from "../components/ui/Table";
+import { Skeleton } from "../components/ui/Skeleton";
+import { EmptyState } from "../components/ui/EmptyState";
 
 export const BattleScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,7 +40,7 @@ export const BattleScreen: React.FC = () => {
         });
         setCreaturesMap(cmap);
       } catch (err: any) {
-        setErrorMsg("Failed to load battle: " + err.message);
+        setErrorMsg("Failed to load battle record: " + err.message);
       } finally {
         setIsLoading(false);
       }
@@ -44,149 +50,151 @@ export const BattleScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
-        <h3>Loading battle simulation...</h3>
+      <div className="page-container">
+        <Skeleton variant="text" width="300px" height="32px" />
+        <Skeleton variant="text" width="200px" height="18px" />
+        <div style={{ marginTop: "var(--space-6)" }}>
+          <Skeleton variant="rectangular" width="100%" height={380} />
+        </div>
       </div>
     );
   }
 
   if (errorMsg || !battle) {
     return (
-      <div className="arcade-panel" style={{ padding: "2rem", textAlign: "center" }}>
-        <h3 style={{ color: "#ef4444", marginBottom: "1rem" }}>{errorMsg || "Battle not found"}</h3>
-        <Link to="/" className="btn-arcade btn-primary">
-          Back to Roster Select
-        </Link>
+      <div className="page-container">
+        <EmptyState
+          title="Battle Not Found"
+          description={errorMsg || "The requested battle simulation could not be loaded."}
+          actionLabel="Back to Scenarios"
+          onAction={() => navigate("/scenarios")}
+        />
       </div>
     );
   }
 
   const isWin = battle.outcome === "win";
 
+  const eventColumns: Column<any>[] = [
+    {
+      key: "tick",
+      header: "Tick",
+      width: "70px",
+      render: (row) => <span style={{ fontWeight: "bold", color: "var(--text-muted)" }}>T{row.tick}</span>,
+    },
+    {
+      key: "event_type",
+      header: "Type",
+      width: "90px",
+      render: (row) => {
+        const variant =
+          row.event_type === "death"
+            ? "error"
+            : row.event_type === "hazard"
+            ? "warning"
+            : row.event_type === "pickup"
+            ? "electric"
+            : "neutral";
+        return <Badge variant={variant as any} size="sm">{row.event_type}</Badge>;
+      },
+    },
+    {
+      key: "action",
+      header: "Combat Action",
+      render: (row) => (
+        <span>
+          <strong style={{ color: "var(--text-primary)" }}>{row.actor ? `${row.actor}: ` : ""}</strong>
+          <span>{row.action}</span>
+          {row.target && <span style={{ color: "var(--text-muted)" }}> → {row.target}</span>}
+        </span>
+      ),
+    },
+    {
+      key: "damage",
+      header: "Damage",
+      width: "80px",
+      render: (row) => (
+        <span style={{ color: row.damage > 0 ? "var(--color-error)" : "inherit" }}>
+          {row.damage > 0 ? `-${row.damage}` : "-"}
+        </span>
+      ),
+    },
+    {
+      key: "hp_after",
+      header: "HP After",
+      width: "80px",
+    },
+    {
+      key: "coin_change",
+      header: "Coins",
+      width: "80px",
+      render: (row) => (
+        <span style={{ color: row.coin_change ? "var(--color-warning)" : "inherit" }}>
+          {row.coin_change ? (row.coin_change > 0 ? `+${row.coin_change}` : row.coin_change) : "-"}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      {/* Top Banner */}
+    <div className="page-container">
+      {/* Header Banner */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: "1rem",
-          marginBottom: "1.25rem",
+          gap: "var(--space-3)",
+          marginBottom: "var(--space-6)",
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <h2 className="screen-title" style={{ fontSize: "1.75rem" }}>
-              {scenario?.name || "Scenario Battle"}
-            </h2>
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontWeight: 900,
-                fontSize: "0.85rem",
-                padding: "3px 10px",
-                borderRadius: "6px",
-                background: isWin ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
-                color: isWin ? "var(--primary-green)" : "var(--primary-red)",
-                border: `1px solid ${isWin ? "var(--primary-green)" : "var(--primary-red)"}`,
-              }}
-            >
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <h1 className="text-h1">{scenario?.name || "Scenario Battle"}</h1>
+            <Badge variant={isWin ? "success" : "error"} size="md" hasDot>
               {isWin ? "VICTORY" : "DEFEAT"}
-            </span>
+            </Badge>
           </div>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-            Deterministic Seed: <strong>{battle.seed}</strong> • Engine v{battle.engine_version} • Mode:{" "}
-            <strong>{battle.personality}</strong>
+          <p className="text-muted text-small" style={{ marginTop: "4px" }}>
+            Deterministic Seed: <strong>{battle.seed}</strong> • Engine v{battle.engine_version} • Mode: {battle.personality}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button
+        <div style={{ display: "flex", gap: "var(--space-3)" }}>
+          <Button
+            id="open-report-btn"
+            variant="primary"
             onClick={() => navigate(`/report/${battle.battle_id}`)}
-            className="btn-arcade btn-accent"
           >
-            📊 Open Analytics Report
-          </button>
-          <Link to="/" className="btn-arcade btn-secondary">
-            ↺ New Battle
-          </Link>
+            📊 Analytics Report
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate("/scenarios")}
+          >
+            ↺ Draft New Squad
+          </Button>
         </div>
       </div>
 
-      {/* Interactive Themed Arena */}
+      {/* Main Arena Simulation */}
       <Arena battle={battle} scenario={scenario} creaturesMap={creaturesMap} />
 
-      {/* Event Log Stream */}
-      <div className="arcade-panel" style={{ marginTop: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <h4 style={{ color: "#fff", fontWeight: 800 }}>Complete Event Log ({battle.events.length} records)</h4>
-          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Fully Deterministic Record</span>
-        </div>
-
-        <div className="table-responsive-wrapper" style={{ maxHeight: "320px", overflowY: "auto" }}>
-          <table className="arcade-table">
-            <thead>
-              <tr>
-                <th style={{ width: "60px" }}>Tick</th>
-                <th style={{ width: "90px" }}>Type</th>
-                <th>Action & Target</th>
-                <th style={{ width: "80px" }}>Damage</th>
-                <th style={{ width: "80px" }}>HP After</th>
-                <th style={{ width: "80px" }}>Coins</th>
-              </tr>
-            </thead>
-            <tbody>
-              {battle.events.map((ev, idx) => (
-                <tr key={idx} style={{ background: ev.ko ? "rgba(239, 68, 68, 0.12)" : undefined }}>
-                  <td style={{ fontWeight: 800, color: "var(--text-muted)" }}>T{ev.tick}</td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: "0.7rem",
-                        fontWeight: 800,
-                        textTransform: "uppercase",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        background:
-                          ev.event_type === "hazard"
-                            ? "var(--hazard-purple)"
-                            : ev.event_type === "death"
-                            ? "var(--primary-red)"
-                            : ev.event_type === "pickup" || ev.event_type === "block"
-                            ? "var(--coin-gold)"
-                            : "var(--bg-surface)",
-                        color:
-                          ev.event_type === "pickup" || ev.event_type === "block" ? "#000" : "#fff",
-                      }}
-                    >
-                      {ev.event_type}
-                    </span>
-                  </td>
-                  <td>
-                    <strong style={{ color: "#fff" }}>{ev.actor ? `${ev.actor}: ` : ""}</strong>
-                    <span>{ev.action}</span>
-                    {ev.target && <span style={{ color: "var(--text-muted)" }}> → {ev.target}</span>}
-                    {ev.status_change && (
-                      <span style={{ color: "var(--coin-gold)", marginLeft: "6px" }}>
-                        [{ev.status_change}]
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ color: ev.damage > 0 ? "#ef4444" : ev.damage < 0 ? "#10b981" : "inherit" }}>
-                    {ev.damage > 0 ? `-${ev.damage}` : ev.damage < 0 ? `+${Math.abs(ev.damage)}` : "-"}
-                  </td>
-                  <td>{ev.hp_after}</td>
-                  <td style={{ color: ev.coin_change ? "var(--coin-gold)" : "inherit" }}>
-                    {ev.coin_change ? (ev.coin_change > 0 ? `+${ev.coin_change}` : ev.coin_change) : "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Full Event Log */}
+      <Card style={{ marginTop: "var(--space-6)" }}>
+        <CardHeader>
+          <CardTitle>Deterministic Event Log ({battle.events.length} records)</CardTitle>
+        </CardHeader>
+        <CardBody style={{ padding: 0 }}>
+          <Table
+            columns={eventColumns}
+            data={battle.events}
+            keyField={(row) => `${row.tick}-${row.action}-${row.hp_after}`}
+            caption="Tick-by-tick combat resolution log"
+          />
+        </CardBody>
+      </Card>
     </div>
   );
 };
