@@ -238,33 +238,75 @@ export const SelectScreen: React.FC = () => {
 
   return (
     <div className="page-container">
-      {/* Header section */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
-        <div>
-          <h1 className="text-h1">Scenario & Squad Builder</h1>
-          <p className="text-muted" style={{ marginTop: "var(--space-1)" }}>
-            Select an arena scenario, draft 4 elemental creatures, and simulate seeded skirmishes.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "var(--space-3)" }}>
-          <Button
-            id="quick-battle-btn"
-            variant="secondary"
-            onClick={handleQuickBattle}
-            isLoading={isStarting}
-            title="Launch an instant battle with default squad"
-          >
-            ⚡ Quick Battle
-          </Button>
-          <Button
-            id="launch-battle-btn"
-            variant="primary"
-            onClick={handleStartBattle}
-            disabled={selectedTeam.length === 0 || !selectedScenarioId}
-            isLoading={isStarting}
-          >
-            ⚔️ Simulate Battle ({selectedTeam.length}/4)
-          </Button>
+      {/* Draft Chamber Header Banner */}
+      <div
+        style={{
+          position: 'relative',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          marginBottom: 'var(--space-6)',
+          border: '2px solid rgba(59, 130, 246, 0.4)',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+          background: '#090d16',
+          height: '200px',
+        }}
+      >
+        <img
+          src="/images/trainer_mario_yoshis.jpg"
+          alt="Trainer Mario & Yoshi Starters at Warp Pipe"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 20%',
+            filter: 'brightness(0.9) contrast(1.1)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(90deg, rgba(15,23,42,0.94) 0%, rgba(15,23,42,0.5) 50%, rgba(15,23,42,0.92) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '20px 32px',
+          }}
+        >
+          <div style={{ maxWidth: '580px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+              <Badge variant="water" size="sm">⚔️ SQUAD DRAFT CHAMBER</Badge>
+              <Badge variant="warning" size="sm">WARP PIPE ARENA</Badge>
+              <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600 }}>⭐ 4v4 Tactical Lanes</span>
+            </div>
+            <h1 style={{ fontSize: '26px', fontWeight: 900, margin: '0 0 4px 0', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+              Stages & Squad Draft
+            </h1>
+            <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1' }}>
+              Pick a hazard stage, draft 4 synergy fighters from the warp pipe, and launch deterministic seeded skirmishes.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Button
+              id="quick-battle-btn"
+              variant="secondary"
+              onClick={handleQuickBattle}
+              isLoading={isStarting}
+              title="Launch an instant battle with default squad"
+            >
+              ⚡ Quick Match
+            </Button>
+            <Button
+              id="launch-battle-btn"
+              variant="primary"
+              onClick={handleStartBattle}
+              disabled={selectedTeam.length === 0 || !selectedScenarioId}
+              isLoading={isStarting}
+            >
+              ⚔️ Simulate Battle ({selectedTeam.length}/4)
+            </Button>
+          </div>
         </div>
       </div>
 

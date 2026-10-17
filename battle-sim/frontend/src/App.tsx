@@ -148,6 +148,30 @@ export const AppContent: React.FC = () => {
           </div>
 
           <div className="top-bar-right" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            {/* Mascot Companion Avatar */}
+            <div
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: '1.5px solid #f59e0b',
+                background: '#0f172a',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Mario Eevee • Arena Mascot & Companion"
+              onClick={handlePunchBlock}
+            >
+              <img
+                src="/images/eevee_mario_mascot.jpg"
+                alt="Mario Eevee"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+
             {/* Punchable Mario Question Block */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <button

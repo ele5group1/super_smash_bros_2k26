@@ -35,8 +35,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ backendOnline, onOpenShortcuts
   return (
     <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`} aria-label="Main navigation">
       <div className="sidebar-header">
-        <Link to="/" className="sidebar-brand" title="Puffcap Arena">
-          <div className="sidebar-logo">PA</div>
+        <Link to="/" className="sidebar-brand" title="Puffcap Arena: Mario x Pokemon Battle Arena">
+          <div className="sidebar-logo" style={{ overflow: 'hidden', padding: 0, border: '2px solid #ef4444', borderRadius: '8px', background: '#0f172a' }}>
+            <img
+              src="/images/eevee_mario_mascot.jpg"
+              alt="Mario Eevee Mascot"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </div>
           {!isCollapsed && <span>Puffcap Arena</span>}
         </Link>
         <button

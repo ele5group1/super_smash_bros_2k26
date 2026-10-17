@@ -41,55 +41,81 @@ export const TournamentScreen: React.FC = () => {
 
   return (
     <div className="container" style={{ padding: "var(--space-6) var(--space-4)" }}>
-      {/* Header Banner */}
+      {/* Tournament Clash Banner */}
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: "var(--space-4)",
-          marginBottom: "var(--space-6)",
+          position: 'relative',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          marginBottom: 'var(--space-6)',
+          border: '2px solid rgba(239, 68, 68, 0.4)',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+          background: '#090d16',
+          height: '200px',
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <h1 style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}>
-              🏆 Tournament Bracket Simulator
+        <img
+          src="/images/arena_battle_clash.jpg"
+          alt="Championship Cup Battle Clash"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 35%',
+            filter: 'brightness(0.9) contrast(1.15)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(90deg, rgba(15,23,42,0.94) 0%, rgba(15,23,42,0.45) 50%, rgba(15,23,42,0.92) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '20px 32px',
+          }}
+        >
+          <div style={{ maxWidth: '580px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+              <Badge variant="error" size="sm">🏆 CHAMPIONSHIP CUP</Badge>
+              <Badge variant="warning" size="sm">8-SQUAD ELIMINATION</Badge>
+              <span style={{ fontSize: '12px', color: '#facc15', fontWeight: 600 }}>⭐ Grand Finals Trophy</span>
+            </div>
+            <h1 style={{ fontSize: '26px', fontWeight: 900, margin: '0 0 4px 0', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+              Mushroom Cup Championship
             </h1>
-            <Badge variant="info" size="md">8 Squads</Badge>
+            <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1' }}>
+              8 seeded squads battle through Quarterfinals, Semifinals, and the Grand Finals. Track MVP eliminations and live battle replays.
+            </p>
           </div>
-          <p style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
-            Single-elimination championship bracket. 8 seeded squads battle through Quarterfinals,
-            Semifinals, and the Grand Finals.
-          </p>
-        </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-            <label htmlFor="squad-size-select" style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-              Squad Size:
-            </label>
-            <select
-              id="squad-size-select"
-              value={squadSize}
-              onChange={(e) => setSquadSize(Number(e.target.value))}
-              className="ui-input"
-              style={{ padding: "4px 8px", width: "80px", height: "32px", fontSize: "13px" }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <label htmlFor="squad-size-select" style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: 600 }}>
+                Squad Size:
+              </label>
+              <select
+                id="squad-size-select"
+                value={squadSize}
+                onChange={(e) => setSquadSize(Number(e.target.value))}
+                className="ui-input"
+                style={{ padding: '4px 8px', width: '80px', height: '32px', fontSize: '13px' }}
+              >
+                <option value={2}>2v2</option>
+                <option value={3}>3v3</option>
+              </select>
+            </div>
+
+            <Button
+              id="simulate-tournament-btn"
+              variant="primary"
+              onClick={() => handleSimulate(false)}
+              isLoading={loading}
             >
-              <option value={2}>2v2</option>
-              <option value={3}>3v3</option>
-            </select>
+              🎲 New Tournament
+            </Button>
           </div>
-
-          <Button
-            id="simulate-tournament-btn"
-            variant="primary"
-            onClick={() => handleSimulate(false)}
-            isLoading={loading}
-          >
-            🎲 New Tournament
-          </Button>
         </div>
       </div>
 

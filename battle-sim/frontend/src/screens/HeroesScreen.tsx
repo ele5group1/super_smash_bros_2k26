@@ -134,25 +134,60 @@ export const HeroesScreen: React.FC = () => {
 
   return (
     <div className="heroes-screen page-container" style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
-      {/* Top Header */}
-      <div className="heroes-header" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '32px' }}>🛡️</span>
-              <h1 style={{ fontSize: '28px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-                Heroes & Combatants Directory
-              </h1>
+      {/* Smash All-Stars Roster Banner */}
+      <div
+        style={{
+          position: 'relative',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          marginBottom: '24px',
+          border: '2px solid rgba(234, 179, 8, 0.4)',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+          background: '#090d16',
+          height: '210px',
+        }}
+      >
+        <img
+          src="/images/smash_roster_banner.jpg"
+          alt="Super Smash Bros All-Stars Roster"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 22%',
+            filter: 'brightness(0.9) contrast(1.15)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(90deg, rgba(15,23,42,0.92) 0%, rgba(15,23,42,0.45) 50%, rgba(15,23,42,0.9) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '24px 32px',
+          }}
+        >
+          <div style={{ maxWidth: '600px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <Badge variant="fire" size="sm">🥊 SMASH ALL-STARS</Badge>
+              <Badge variant="warning" size="sm">16+ PLAYABLE FIGHTERS</Badge>
+              <span style={{ fontSize: '12px', color: '#facc15', fontWeight: 600 }}>⭐ All Affinities Unlocked</span>
             </div>
-            <p style={{ color: 'var(--text-secondary, #94a3b8)', marginTop: '6px', fontSize: '15px' }}>
-              Explore tactical combatants of the Puffcap Arena. Inspect base statistics, move affinities, and recruit units directly to your squad.
+            <h1 style={{ fontSize: '28px', fontWeight: 900, margin: '0 0 6px 0', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+              Fighters & Combatants Roster
+            </h1>
+            <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1' }}>
+              Inspect base stats, elemental affinities, special moves, and recruit units directly to your squad.
             </p>
           </div>
 
-          <Button variant="primary" onClick={() => navigate('/scenarios')}>
+          <Button variant="primary" size="md" onClick={() => navigate('/scenarios')} style={{ whiteSpace: 'nowrap' }}>
             ⚔️ Go to Battle Draft
           </Button>
         </div>
+      </div>
 
         {/* Filter Controls Bar */}
         <div
@@ -246,7 +281,6 @@ export const HeroesScreen: React.FC = () => {
             </select>
           </div>
         </div>
-      </div>
 
       {/* Hero Cards Grid */}
       {loading ? (

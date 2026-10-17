@@ -152,9 +152,28 @@ export const BattleScreen: React.FC = () => {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <h1 className="text-h1">{scenario?.name || "Scenario Battle"}</h1>
-            <Badge variant={isWin ? "success" : "error"} size="md" hasDot>
-              {isWin ? "VICTORY" : "DEFEAT"}
-            </Badge>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: isWin ? '2px solid #10b981' : '2px solid #ef4444',
+                  boxShadow: isWin ? '0 0 10px rgba(16, 185, 129, 0.4)' : '0 0 10px rgba(239, 68, 68, 0.4)',
+                }}
+                title={isWin ? "Mascot: Victory is ours!" : "Mascot: Ready for a rematch!"}
+              >
+                <img
+                  src="/images/eevee_mario_mascot.jpg"
+                  alt="Mario Eevee Mascot"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+              <Badge variant={isWin ? "success" : "error"} size="md" hasDot>
+                {isWin ? "VICTORY" : "DEFEAT"}
+              </Badge>
+            </div>
           </div>
           <p className="text-muted text-small" style={{ marginTop: "4px" }}>
             Deterministic Seed: <strong>{battle.seed}</strong> • Engine v{battle.engine_version} • Mode: {battle.personality}

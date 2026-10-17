@@ -80,6 +80,93 @@ export const LandingScreen: React.FC = () => {
 
   return (
     <div className="page-container">
+      {/* Cinematic Showcase Banner */}
+      <div
+        style={{
+          position: 'relative',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          marginBottom: 'var(--space-6)',
+          border: '2px solid rgba(239, 68, 68, 0.4)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          background: '#090d16',
+          height: '240px',
+        }}
+      >
+        <img
+          src="/images/hero_mario_pokemon_split.jpg"
+          alt="Super Mario x Pokémon Battle Arena"
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 28%',
+            filter: 'brightness(0.9) contrast(1.1)',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(90deg, rgba(15,23,42,0.94) 0%, rgba(15,23,42,0.65) 45%, rgba(15,23,42,0.85) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '24px 32px',
+          }}
+        >
+          <div style={{ maxWidth: '580px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              <Badge variant="fire" size="sm" hasDot>
+                MARIO × POKÉMON CROSSOVER
+              </Badge>
+              <Badge variant="warning" size="sm">
+                ARCADE EDITION
+              </Badge>
+              <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                ⭐ 100% Deterministic Engine
+              </span>
+            </div>
+            <h2 style={{ fontSize: '26px', fontWeight: 900, margin: '0 0 6px 0', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+              Mushroom Kingdom Meets Kanto Arena
+            </h2>
+            <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: '1.4' }}>
+              Jump over warp pipes, summon flame geysers, and clash in tactical 4v4 lane combat. Seed-based fairness guaranteed.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '12px',
+                border: '2px solid #f59e0b',
+                overflow: 'hidden',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
+                background: '#1e293b',
+              }}
+              title="Official Mascot: Mario-Cap Eevee"
+            >
+              <img
+                src="/images/eevee_mario_mascot.jpg"
+                alt="Mario Eevee Mascot"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+            <Button
+              variant="primary"
+              size="md"
+              isLoading={quickStarting}
+              onClick={handleQuickBattle}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              ⚔️ Play Now
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section
         style={{
@@ -87,13 +174,19 @@ export const LandingScreen: React.FC = () => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: 'var(--space-8)',
           alignItems: 'center',
-          padding: 'var(--space-8) 0',
+          padding: 'var(--space-4) 0',
         }}
       >
         <div>
-          <Badge variant="fire" size="md" hasDot style={{ marginBottom: 'var(--space-3)' }}>
-            Mushroom Kingdom × Kanto Arena
-          </Badge>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 'var(--space-3)' }}>
+            <Badge variant="fire" size="md" hasDot>
+              Mushroom Kingdom × Kanto Arena
+            </Badge>
+            <span style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <img src="/images/eevee_mario_mascot.jpg" alt="Mascot" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover' }} />
+              Mascot: Mario Eevee
+            </span>
+          </div>
           <h1 className="text-display" style={{ marginBottom: 'var(--space-4)' }}>
             Pick Your Squad. Master the Stages. Win the Cup.
           </h1>
@@ -236,6 +329,150 @@ export const LandingScreen: React.FC = () => {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Arena Modes Visual Showcase */}
+      <section style={{ marginTop: 'var(--space-8)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <h2 className="text-h2">Arena Battle Modes & Visual Showcase</h2>
+          <p className="text-muted" style={{ fontSize: 'var(--font-size-small)' }}>
+            Experience competitive arcade brawls, drafting strategy, and championship tournaments.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 'var(--space-5)',
+          }}
+        >
+          {/* Roster Showcase */}
+          <Card
+            variant="interactive"
+            onClick={() => navigate('/heroes')}
+            style={{ overflow: 'hidden', border: '1px solid var(--border-strong)', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ height: '160px', overflow: 'hidden', position: 'relative', background: '#0f172a' }}>
+              <img
+                src="/images/smash_roster_banner.jpg"
+                alt="All-Star Fighters Roster"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to top, rgba(15,23,42,0.95) 0%, transparent 60%)',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  padding: '12px 16px',
+                }}
+              >
+                <Badge variant="fire" size="sm">
+                  🥊 16+ FIGHTERS
+                </Badge>
+              </div>
+            </div>
+            <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 className="text-h3" style={{ marginBottom: 'var(--space-2)' }}>Fighters Roster</h3>
+                <p className="text-muted text-small">
+                  Compare elemental affinities, attack ranges, and special moves from Mario's Fireball to Charizard's Flamethrower.
+                </p>
+              </div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="ghost" size="sm">
+                  View Roster →
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Draft Chamber */}
+          <Card
+            variant="interactive"
+            onClick={() => navigate('/scenarios')}
+            style={{ overflow: 'hidden', border: '1px solid var(--border-strong)', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ height: '160px', overflow: 'hidden', position: 'relative', background: '#0f172a' }}>
+              <img
+                src="/images/trainer_mario_yoshis.jpg"
+                alt="Trainer Mario & Yoshis"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%' }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to top, rgba(15,23,42,0.95) 0%, transparent 60%)',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  padding: '12px 16px',
+                }}
+              >
+                <Badge variant="warning" size="sm">
+                  ⚔️ SQUAD DRAFT
+                </Badge>
+              </div>
+            </div>
+            <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 className="text-h3" style={{ marginBottom: 'var(--space-2)' }}>Stages & Draft</h3>
+                <p className="text-muted text-small">
+                  Draft your 4-fighter composition at the warp pipe and counter enemy team synergies on custom hazard lanes.
+                </p>
+              </div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="ghost" size="sm">
+                  Draft Squad →
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Tournament Clash */}
+          <Card
+            variant="interactive"
+            onClick={() => navigate('/tournament')}
+            style={{ overflow: 'hidden', border: '1px solid var(--border-strong)', display: 'flex', flexDirection: 'column' }}
+          >
+            <div style={{ height: '160px', overflow: 'hidden', position: 'relative', background: '#0f172a' }}>
+              <img
+                src="/images/arena_battle_clash.jpg"
+                alt="Tournament Arena Clash"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 35%' }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to top, rgba(15,23,42,0.95) 0%, transparent 60%)',
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  padding: '12px 16px',
+                }}
+              >
+                <Badge variant="error" size="sm">
+                  🏆 TOURNAMENT CUP
+                </Badge>
+              </div>
+            </div>
+            <CardBody style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 className="text-h3" style={{ marginBottom: 'var(--space-2)' }}>Championship Cup</h3>
+                <p className="text-muted text-small">
+                  Compete in an 8-team single elimination championship bracket. Crown the supreme cross-realm fighting champion!
+                </p>
+              </div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
+                <Button variant="ghost" size="sm">
+                  Enter Cup →
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+        </div>
       </section>
 
       {/* Feature Pillars */}
