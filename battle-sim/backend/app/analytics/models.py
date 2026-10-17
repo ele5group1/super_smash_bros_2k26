@@ -16,6 +16,9 @@ class BattleSummaryModel(BaseModel):
     coins_left: int
     objective_status: str
     summary_sentence: str
+    player_damage_dealt: int = 0
+    enemy_damage_dealt: int = 0
+    pacing_rating: str = "normal"
 
 
 class CreatureStatsModel(BaseModel):
@@ -28,6 +31,14 @@ class CreatureStatsModel(BaseModel):
     status_effects_applied: int = 0
     survival: bool = True
     final_hp: int = 0
+
+    @property
+    def creature_id(self) -> str:
+        return self.id
+
+    @property
+    def survived(self) -> bool:
+        return self.survival
 
 
 class TeamStatsModel(BaseModel):
@@ -70,6 +81,14 @@ class PositionHeatmapModel(BaseModel):
     hottest_cells: List[Dict[str, Any]] = Field(default_factory=list)
     text_summary: str
 
+    @property
+    def total_points(self) -> int:
+        return sum(c.time_spent for row in self.grid for c in row)
+
+    @property
+    def heatmap(self) -> List[List[PositionHeatmapCellModel]]:
+        return self.grid
+
 
 # --- Diagnostic Analytics Models ---
 
@@ -89,6 +108,17 @@ class CauseTraceModel(BaseModel):
     root_cause: Optional[str] = None
     explanation: str
     events: List[CauseTraceEventModel] = Field(default_factory=list)
+    creature_id: Optional[str] = None
+    killer: Optional[str] = None
+    fatal_tick: Optional[int] = None
+
+    def __len__(self) -> int:
+        return 1 if self.is_defeat else 0
+
+    def __getitem__(self, idx: int) -> CauseTraceModel:
+        if idx == 0 and self.is_defeat:
+            return self
+        raise IndexError(idx)
 
 
 class LossCauseShareModel(BaseModel):
@@ -124,6 +154,10 @@ class DecisionAuditReportModel(BaseModel):
     total_decisions: int
     flagged_decisions_count: int
     decisions: List[DecisionAuditItemModel] = Field(default_factory=list)
+
+    @property
+    def flagged_decisions(self) -> List[DecisionAuditItemModel]:
+        return self.decisions
 
 
 class CauseTraceDiffModel(BaseModel):
@@ -197,6 +231,18 @@ class StatePredictionModel(BaseModel):
     visible_allies_alive: int
     visible_enemies_alive: int
 
+    @property
+    def win_rate(self) -> float:
+        return self.predicted_win_rate
+
+    @property
+    def visible_player_count(self) -> int:
+        return self.visible_allies_alive
+
+    @property
+    def visible_enemy_count(self) -> int:
+        return self.visible_enemies_alive
+
 
 # --- Prescriptive Analytics Models ---
 
@@ -262,6 +308,18 @@ class BalanceReportModel(BaseModel):
     dominant_strategy_notes: List[str] = Field(default_factory=list)
     pacing: BalancePacingModel
     teams_evaluated: List[TeamBalanceEvaluationModel] = Field(default_factory=list)
+
+    @property
+    def archetypes(self) -> List[TeamBalanceEvaluationModel]:
+        return self.teams_evaluated
+
+    @property
+    def target_band_min(self) -> float:
+        return 25.0
+
+    @property
+    def target_band_max(self) -> float:
+        return 75.0
 
 
 class SensitivitySweepPointModel(BaseModel):

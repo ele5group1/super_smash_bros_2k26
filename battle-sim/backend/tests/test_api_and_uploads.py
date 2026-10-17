@@ -1,6 +1,7 @@
 """Comprehensive test suite for API endpoints, uploads, security, and replay validation."""
 
 import io
+from pathlib import Path
 import zipfile
 import pytest
 from fastapi.testclient import TestClient
@@ -216,8 +217,9 @@ def test_formula_injection_guard():
 def test_replay_verification_match_and_mismatch():
     # Match test: replaying a deterministic battle produced by the engine
     scen = db.get_scenario("pipe_ambush")
-    p_team = [db.get_creature("ember_fox"), db.get_creature("bubble_toad")]
-    e_team = [db.get_creature(cid) for cid in scen.enemy_team]
+    assert scen is not None
+    p_team = [c for cid in ["ember_fox", "bubble_toad"] if (c := db.get_creature(cid)) is not None]
+    e_team = [c for cid in scen.enemy_team if (c := db.get_creature(cid)) is not None]
     from app.engine.tick import TickEngine
     eng = TickEngine(scen, p_team, e_team, seed=555)
     clean_battle = eng.run()
@@ -237,7 +239,8 @@ def test_replay_verification_match_and_mismatch():
 
 def test_upload_delete_isolation(client):
     # Upload sample valid creatures
-    with open("backend/samples/creatures.json", "rb") as f:
+    sample_file = Path(__file__).resolve().parent.parent / "samples" / "creatures.json"
+    with open(sample_file, "rb") as f:
         file_bytes = f.read()
 
     res = client.post(

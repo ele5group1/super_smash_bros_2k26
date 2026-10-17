@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import uuid
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Literal
 from .models import (
     Creature,
     Move,
@@ -26,7 +26,7 @@ class TickEngine:
         player_creatures: List[Creature],
         enemy_creatures: List[Creature],
         seed: int = 1000,
-        personality: str = "opportunistic",
+        personality: Literal["aggressive", "defensive", "opportunistic"] = "opportunistic",
         battle_id: Optional[str] = None,
         counterfactual: Optional[CounterfactualRequest] = None,
         early_heal_spend: int = 0,
@@ -34,7 +34,9 @@ class TickEngine:
         self.scenario = scenario
         self.seed = seed
         self.rng = SeededRNG(seed)
-        self.personality = personality
+        self.personality: Literal["aggressive", "defensive", "opportunistic"] = (
+            personality if personality in ("aggressive", "defensive", "opportunistic") else "opportunistic"
+        )
         self.battle_id = battle_id or str(uuid.uuid4())
         self.counterfactual = counterfactual
         self.early_heal_spend = early_heal_spend
@@ -94,7 +96,9 @@ class TickEngine:
         coin_change: int = 0,
         coin_before: Optional[int] = None,
         coin_after: Optional[int] = None,
-        event_type: str = "info",
+        event_type: Literal[
+            "hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision"
+        ] = "info",
         lane: int = 0,
         tile: int = 0,
         options_considered: Optional[List[Dict[str, Any]]] = None,
@@ -126,34 +130,34 @@ class TickEngine:
         self.events.append(ev)
         return ev
 
+    def run(self) -> BattleRecord:
+        """Runs the battle until victory, defeat, or max ticks reached."""
         # Handle early heal spend at start if requested
         if self.early_heal_spend > 0 and self.player_team:
             heal_per_creature = self.early_heal_spend * 4
-            target = min(self.player_team, key=lambda p: p["hp"])
-            old_hp = target["hp"]
-            target["hp"] = min(target["max_hp"], target["hp"] + heal_per_creature)
+            heal_target = min(self.player_team, key=lambda p: p["hp"])
+            old_hp = heal_target["hp"]
+            heal_target["hp"] = min(heal_target["max_hp"], heal_target["hp"] + heal_per_creature)
             self._add_event(
                 tick=1,
                 actor="player",
                 action=f"Early Heal ({self.early_heal_spend} coins spent)",
-                target=target["id"],
+                target=heal_target["id"],
                 damage=-heal_per_creature,
                 hp_before=old_hp,
-                hp_after=target["hp"],
+                hp_after=heal_target["hp"],
                 status_change="healed",
                 coin_change=-self.early_heal_spend,
                 coin_before=self.scenario.starting_coins,
                 coin_after=self.player_coins,
                 event_type="info",
-                lane=target["lane"],
-                tile=target["tile"],
+                lane=heal_target["lane"],
+                tile=heal_target["tile"],
             )
 
-    def run(self) -> BattleRecord:
-        """Runs the battle until victory, defeat, or max ticks reached."""
         max_ticks = self.scenario.ticks
         current_tick = 1
-        outcome: Optional[str] = None
+        outcome: Optional[Literal["win", "loss"]] = None
 
         while current_tick <= max_ticks:
             # Step 1: Scheduled hazards fire
@@ -246,6 +250,7 @@ class TickEngine:
         ticks_elapsed = min(current_tick, max_ticks)
         survivors_count = sum(1 for p in self.player_team if p["hp"] > 0)
 
+        final_outcome: Literal["win", "loss"] = outcome or "loss"
         return BattleRecord(
             battle_id=self.battle_id,
             scenario_id=self.scenario.id,
@@ -253,7 +258,7 @@ class TickEngine:
             engine_version="1.0.0",
             player_team=[p["id"] for p in self.player_team],
             personality=self.personality,
-            outcome=outcome,
+            outcome=final_outcome,
             ticks_elapsed=ticks_elapsed,
             survivors=survivors_count,
             coins_left=self.player_coins,

@@ -30,10 +30,9 @@ def test_engine_determinism(test_db):
     assert scenario is not None
 
     player_team = [
-        test_db.get_creature("ember_fox"),
-        test_db.get_creature("bubble_toad"),
+        c for name in ["ember_fox", "bubble_toad"] if (c := test_db.get_creature(name)) is not None
     ]
-    enemy_team = [test_db.get_creature(cid) for cid in scenario.enemy_team]
+    enemy_team = [c for cid in scenario.enemy_team if (c := test_db.get_creature(cid)) is not None]
 
     # Run 1
     engine1 = TickEngine(scenario, player_team, enemy_team, seed=12345, personality="opportunistic")
@@ -60,8 +59,9 @@ def test_engine_determinism(test_db):
 
 def test_counterfactual_rerun(test_db):
     scenario = test_db.get_scenario("pipe_ambush")
-    player_team = [test_db.get_creature("ember_fox"), test_db.get_creature("bubble_toad")]
-    enemy_team = [test_db.get_creature(cid) for cid in scenario.enemy_team]
+    assert scenario is not None
+    player_team = [c for name in ["ember_fox", "bubble_toad"] if (c := test_db.get_creature(name)) is not None]
+    enemy_team = [c for cid in scenario.enemy_team if (c := test_db.get_creature(cid)) is not None]
 
     # Baseline run
     baseline_eng = TickEngine(scenario, player_team, enemy_team, seed=777)
@@ -99,21 +99,22 @@ def test_scenario_validation_strict():
     # Invalid scenario: invalid objective type
     with pytest.raises(Exception):
         bad_data = dict(valid_data, objective={"type": "invalid_mode"})
-        Scenario(**bad_data)
+        Scenario.model_validate(bad_data)
 
     # Invalid creature stats: HP outside 1-500
     with pytest.raises(Exception):
-        Creature(id="bad_creature", name="Bad", type=CreatureType.FIRE, hp=999, attack=30, speed=50)
+        Creature.model_validate({"id": "bad_creature", "name": "Bad", "type": CreatureType.FIRE, "hp": 999, "attack": 30, "speed": 50})
 
     with pytest.raises(Exception):
-        Creature(id="zero_speed", name="Bad", type=CreatureType.FIRE, hp=100, attack=30, speed=0)
+        Creature.model_validate({"id": "zero_speed", "name": "Bad", "type": CreatureType.FIRE, "hp": 100, "attack": 30, "speed": 0})
 
 
 def test_event_log_prerequisites_all_fields_present(test_db):
     """Verifies each tick's event record contains all required fields, and decisions include options and chosen action."""
     scenario = test_db.get_scenario("pipe_ambush")
-    player_team = [test_db.get_creature("ember_fox"), test_db.get_creature("bubble_toad")]
-    enemy_team = [test_db.get_creature(cid) for cid in scenario.enemy_team]
+    assert scenario is not None
+    player_team = [c for name in ["ember_fox", "bubble_toad"] if (c := test_db.get_creature(name)) is not None]
+    enemy_team = [c for cid in scenario.enemy_team if (c := test_db.get_creature(cid)) is not None]
 
     engine = TickEngine(scenario, player_team, enemy_team, seed=1000)
     battle = engine.run()

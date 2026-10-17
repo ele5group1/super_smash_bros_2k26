@@ -4,12 +4,12 @@ class SeededRNG:
     """Mulberry32 32-bit generator producing identical sequences given the same seed."""
 
     def __init__(self, seed: int = 1000):
-        self.seed = int(seed)
-        self.state = int(seed) & 0xFFFFFFFF
+        self.seed = seed
+        self.state = seed & 0xFFFFFFFF
 
     def reset(self, seed: int | None = None) -> None:
         if seed is not None:
-            self.seed = int(seed)
+            self.seed = seed
         self.state = self.seed & 0xFFFFFFFF
 
     def next_int(self) -> int:

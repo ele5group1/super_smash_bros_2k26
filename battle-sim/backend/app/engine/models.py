@@ -173,7 +173,7 @@ class Scenario(BaseModel):
 
 
 class Event(BaseModel):
-    battle_id: str
+    battle_id: str = ""
     tick: int
     actor: Optional[str] = None
     action: str
@@ -200,17 +200,24 @@ class Event(BaseModel):
 class BattleRecord(BaseModel):
     battle_id: str
     scenario_id: str
-    seed: int
+    seed: int = 1000
     engine_version: str = "1.0.0"
-    player_team: List[str]
+    player_team: List[str] = Field(default_factory=list)
     personality: Literal["aggressive", "defensive", "opportunistic"] = "opportunistic"
     outcome: Literal["win", "loss"]
     ticks_elapsed: int
-    survivors: int
+    survivors: int = 0
     coins_left: int
     source: str = "simulated"
     events: List[Event] = Field(default_factory=list)
     created_at: Optional[str] = None
+
+    @field_validator("survivors", mode="before")
+    @classmethod
+    def validate_survivors(cls, v: Any) -> int:
+        if isinstance(v, list):
+            return len(v)
+        return int(v) if v is not None else 0
 
 
 class BattleCreateRequest(BaseModel):

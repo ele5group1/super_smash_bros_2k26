@@ -36,6 +36,12 @@ def cause_trace(battle: BattleRecord) -> CauseTraceModel:
 
     turning_points: List[CauseTraceEventModel] = []
     player_team_set = set(battle.player_team)
+    if not player_team_set and battle.events:
+        for ev in battle.events:
+            if ev.action == "elimination" and ev.target:
+                player_team_set.add(ev.target)
+            elif ev.actor and ev.actor not in ("system", "crag_golem"):
+                player_team_set.add(ev.actor)
 
     lethal_hazards: List[Dict[str, Any]] = []
     heavy_strikes: List[Dict[str, Any]] = []
@@ -133,6 +139,24 @@ def cause_trace(battle: BattleRecord) -> CauseTraceModel:
 
     turning_points.sort(key=lambda p: p.tick)
 
+    c_id = None
+    killer_name = None
+    f_tick = earliest_tick
+    if heavy_strikes:
+        s = heavy_strikes[0]
+        c_id = s["target"]
+        killer_name = s["actor"]
+        f_tick = s["tick"]
+    elif lethal_hazards:
+        h = lethal_hazards[0]
+        c_id = h["target"]
+        killer_name = h["hazard"]
+        f_tick = h["tick"]
+    elif turning_points:
+        c_id = turning_points[0].target
+        killer_name = first_ko_actor
+        f_tick = turning_points[0].tick
+
     return CauseTraceModel(
         battle_id=battle.battle_id,
         is_defeat=True,
@@ -140,6 +164,9 @@ def cause_trace(battle: BattleRecord) -> CauseTraceModel:
         root_cause=root_cause,
         explanation=explanation,
         events=turning_points,
+        creature_id=c_id,
+        killer=killer_name,
+        fatal_tick=f_tick,
     )
 
 

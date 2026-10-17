@@ -300,8 +300,8 @@ def rerun_battle_counterfactual(battle_id: str, req: CounterfactualRequest):
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{battle.scenario_id}' not found")
 
-    player_creatures = [db.get_creature(cid) for cid in battle.player_team if db.get_creature(cid)]
-    enemy_creatures = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
+    player_creatures: List[Creature] = [c for cid in battle.player_team if (c := db.get_creature(cid)) is not None]
+    enemy_creatures: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
 
     result = counterfactual(
         battle=battle,
@@ -359,7 +359,7 @@ def predict_plan_outcomes(
             raise HTTPException(status_code=400, detail=f"Unknown creature '{cid}' in team")
         player_creatures.append(c)
 
-    enemy_creatures = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
+    enemy_creatures: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
 
     calibrate_battles = None
     mismatched_ids = set()
@@ -422,8 +422,8 @@ def compare_plan_alternatives(
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
 
     all_c = {c.id: c for c in db.get_all_creatures()}
-    enemy_c = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
-    default_team = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
+    enemy_c: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
+    default_team: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
 
     job_id = str(uuid.uuid4())
     is_long_running = async_mode or len(req.options) > 5

@@ -4,7 +4,7 @@ Each calculation function is pure and does not access the database directly.
 """
 
 import math
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Literal
 from app.engine.models import Scenario, Creature, BattleRecord
 from app.engine.tick import TickEngine
 from .models import (
@@ -22,7 +22,7 @@ def compute_confidence_interval(
     wins: int,
     n: int,
     confidence_level: float = 0.95,
-) -> Tuple[float, float, float, str]:
+) -> Tuple[float, float, float, Literal["normal", "wilson"]]:
     """
     Computes a 95% confidence interval for a proportion.
     Uses Normal approximation when p is well within (0.05, 0.95) and n*p >= 5.

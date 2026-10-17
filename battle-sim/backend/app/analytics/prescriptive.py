@@ -200,8 +200,8 @@ def compare_plan_options(
 ) -> List[Dict[str, Any]]:
     from app.storage import db
     all_c = {c.id: c for c in db.get_all_creatures()}
-    enemy_c = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
-    default_team = [db.get_creature(cid) for cid in scenario.enemy_team if db.get_creature(cid)]
+    enemy_c: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
+    default_team: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
 
     models = compare_options(
         scenario=scenario,

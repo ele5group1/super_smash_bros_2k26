@@ -34,6 +34,10 @@ def balance_report(
     Audits a scenario's game balance across standardized test squads.
     Computes overall win rate, pacing metrics, dominant strategies, and flags if outside 25%–75%.
     """
+    if isinstance(standard_team_set, dict):
+        all_creatures_map = standard_team_set
+        standard_team_set = None
+
     archetypes = standard_team_set or DEFAULT_ARCHETYPES
     cmap = all_creatures_map or {}
     enemy_creatures = [cmap[cid] for cid in scenario.enemy_team if cid in cmap]
@@ -138,20 +142,36 @@ def balance_report(
 def sensitivity_sweep(
     scenario: Scenario,
     parameter: str,
-    values: List[Any],
+    values: Any = None,
+    max_val: Optional[float] = None,
     seed_count: int = 30,
     all_creatures_map: Optional[Dict[str, Creature]] = None,
+    steps: Optional[int] = None,
 ) -> SensitivitySweepReportModel:
     """
     Reruns balance evaluations across a range of values for a given parameter.
-    Supported parameters: 'ticks', 'starting_coins', 'hazard_damage'.
+    Supported parameters: 'ticks', 'starting_coins', 'hazard_damage', 'enemy_hp_multiplier'.
     """
+    if isinstance(values, (int, float)) and max_val is not None:
+        step_count = steps or 5
+        start = float(values)
+        end = float(max_val)
+        if step_count <= 1:
+            val_list: List[Any] = [start]
+        else:
+            val_list = [round(start + (end - start) * i / (step_count - 1), 3) for i in range(step_count)]
+    elif isinstance(values, list):
+        val_list = values
+    else:
+        val_list = [0.8, 1.0, 1.2]
+
     points: List[SensitivitySweepPointModel] = []
     balanced_values = []
 
-    for val in values:
+    for val in val_list:
         # Create modified scenario copy
         modified_scenario = scenario.model_copy(deep=True)
+        cur_cmap = all_creatures_map
         if parameter == "ticks":
             modified_scenario.ticks = int(val)
         elif parameter == "starting_coins":
@@ -159,11 +179,18 @@ def sensitivity_sweep(
         elif parameter == "hazard_damage":
             for h in modified_scenario.hazard_schedule:
                 h.params["damage"] = int(val)
+        elif parameter == "enemy_hp_multiplier":
+            mult = float(val)
+            if all_creatures_map:
+                cur_cmap = {
+                    cid: c.model_copy(update={"hp": max(1, int(c.hp * mult))}) if cid in scenario.enemy_team else c
+                    for cid, c in all_creatures_map.items()
+                }
 
         rep = balance_report(
             scenario=modified_scenario,
             seed_count=seed_count,
-            all_creatures_map=all_creatures_map,
+            all_creatures_map=cur_cmap,
         )
 
         win_rate = rep.overall_win_rate_percent / 100.0
@@ -188,7 +215,7 @@ def sensitivity_sweep(
     return SensitivitySweepReportModel(
         scenario_id=scenario.id,
         parameter=parameter,
-        values=values,
+        values=val_list,
         points=points,
         optimal_range=opt_range,
     )

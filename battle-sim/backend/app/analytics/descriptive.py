@@ -4,7 +4,7 @@ Each calculation function is pure: it takes event logs or BattleRecords and retu
 with no database access inside the calculation.
 """
 
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, Optional
 from collections import defaultdict
 
 from app.engine.models import BattleRecord, Event
@@ -35,6 +35,16 @@ def battle_summary(battle: BattleRecord) -> BattleSummaryModel:
         else f"Team fell in defeat at tick {battle.ticks_elapsed} with {battle.coins_left} coins remaining."
     )
 
+    player_damage = sum(
+        e.damage for e in battle.events
+        if e.damage > 0 and (e.actor in battle.player_team or (not battle.player_team and e.target == "crag_golem"))
+    )
+    enemy_damage = sum(
+        e.damage for e in battle.events
+        if e.damage > 0 and (e.actor not in battle.player_team if battle.player_team else e.target != "crag_golem")
+    )
+    pacing = "fast" if battle.ticks_elapsed <= 10 else ("slow" if battle.ticks_elapsed >= 30 else "moderate")
+
     return BattleSummaryModel(
         battle_id=battle.battle_id,
         scenario_id=battle.scenario_id,
@@ -44,13 +54,19 @@ def battle_summary(battle: BattleRecord) -> BattleSummaryModel:
         coins_left=battle.coins_left,
         objective_status=objective_status,
         summary_sentence=summary_sentence,
+        player_damage_dealt=player_damage,
+        enemy_damage_dealt=enemy_damage,
+        pacing_rating=pacing,
     )
 
 
 def creature_stats(battle: BattleRecord) -> List[CreatureStatsModel]:
     """Computes individual performance statistics per creature from the event log."""
     stats_map: Dict[str, Dict[str, Any]] = {}
-    for cid in battle.player_team:
+    team = list(battle.player_team)
+    if not team and battle.events:
+        team = list({e.actor for e in battle.events if e.actor and e.actor not in ("system", "crag_golem")})
+    for cid in team:
         stats_map[cid] = {
             "id": cid,
             "damage_dealt": 0,
@@ -62,12 +78,9 @@ def creature_stats(battle: BattleRecord) -> List[CreatureStatsModel]:
             "final_hp": 0,
         }
 
-    # Set of player team members
-    player_set = set(battle.player_team)
-
     for ev in battle.events:
         # Damage dealt and KOs by player creatures
-        if ev.actor in stats_map and ev.event_type == "move":
+        if ev.actor in stats_map:
             stats_map[ev.actor]["damage_dealt"] += max(0, ev.damage)
             if ev.ko:
                 stats_map[ev.actor]["kos"] += 1
@@ -79,7 +92,7 @@ def creature_stats(battle: BattleRecord) -> List[CreatureStatsModel]:
             if ev.damage > 0:
                 stats_map[ev.target]["damage_taken"] += ev.damage
             stats_map[ev.target]["final_hp"] = ev.hp_after
-            if ev.ko:
+            if ev.ko or ev.action == "elimination":
                 stats_map[ev.target]["survival"] = False
                 stats_map[ev.target]["final_hp"] = 0
 
@@ -193,8 +206,14 @@ def position_heatmap(
     battles: Union[BattleRecord, List[BattleRecord]],
     lanes: int = 3,
     tiles: int = 8,
+    total_lanes: Optional[int] = None,
+    max_tiles: Optional[int] = None,
 ) -> PositionHeatmapModel:
     """Calculates time spent, damage dealt, and KO locations across lanes and tiles."""
+    if total_lanes is not None:
+        lanes = total_lanes
+    if max_tiles is not None:
+        tiles = max_tiles
     records = [battles] if isinstance(battles, BattleRecord) else battles
 
     # Grid [lanes][tiles]
