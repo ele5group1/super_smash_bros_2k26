@@ -49,8 +49,9 @@ def balance_report(
     timeouts = 0
 
     for arch in archetypes:
-        name = arch.get("name", "Team")
-        team_ids = arch.get("team", [])
+        name: str = str(arch.get("name") or "Team")
+        raw_team = arch.get("team") or []
+        team_ids: List[str] = [str(x) for x in raw_team] if isinstance(raw_team, list) else []
         creatures = [cmap[cid] for cid in team_ids if cid in cmap]
         if not creatures:
             continue
