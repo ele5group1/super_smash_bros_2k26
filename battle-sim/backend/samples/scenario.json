@@ -1,0 +1,133 @@
+{
+  "id": "pipe_ambush",
+  "name": "Mushroom Kingdom: Pipe Ambush",
+  "description": "Dash through World 1-1 Pipe Plains with Mario and Pok\u00e9mon companions, dodging Piranha Plants and fire traps to reach the flagpole.",
+  "lanes": 3,
+  "ticks": 40,
+  "map": [
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 0,
+      "tile_index": 2,
+      "tile_type": "pipe"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 0,
+      "tile_index": 4,
+      "tile_type": "question_block"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 0,
+      "tile_index": 7,
+      "tile_type": "exit"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 1,
+      "tile_index": 1,
+      "tile_type": "pipe"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 1,
+      "tile_index": 3,
+      "tile_type": "hazard_zone"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 1,
+      "tile_index": 5,
+      "tile_type": "coin_cache"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 1,
+      "tile_index": 7,
+      "tile_type": "exit"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 2,
+      "tile_index": 2,
+      "tile_type": "hazard_zone"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 2,
+      "tile_index": 4,
+      "tile_type": "pipe"
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "lane": 2,
+      "tile_index": 7,
+      "tile_type": "exit"
+    }
+  ],
+  "hazard_schedule": [
+    {
+      "scenario_id": "pipe_ambush",
+      "tick": 5,
+      "type": "piranha_plant",
+      "lane": 1,
+      "params": {
+        "damage": 22
+      }
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "tick": 12,
+      "type": "fire_stream",
+      "lane": 2,
+      "params": {
+        "damage": 30,
+        "burn": true
+      }
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "tick": 18,
+      "type": "piranha_plant",
+      "lane": 0,
+      "params": {
+        "damage": 25
+      }
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "tick": 25,
+      "type": "fire_stream",
+      "lane": 1,
+      "params": {
+        "damage": 32,
+        "burn": true
+      }
+    },
+    {
+      "scenario_id": "pipe_ambush",
+      "tick": 32,
+      "type": "piranha_plant",
+      "lane": 2,
+      "params": {
+        "damage": 28
+      }
+    }
+  ],
+  "objective": {
+    "type": "reach_exit",
+    "min_survivors": 2,
+    "target_coins": 0,
+    "target_tick": 40
+  },
+  "starting_resources": {
+    "coins": 20
+  },
+  "enemy_team": [
+    "goomba",
+    "koopa_troopa",
+    "piranha_plant"
+  ],
+  "source": "builtin"
+}

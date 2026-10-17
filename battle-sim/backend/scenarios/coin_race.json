@@ -1,0 +1,38 @@
+{
+  "id": "coin_race",
+  "name": "Pokémon Stadium: Championship Cup",
+  "description": "Battle under the grand stadium spotlights to gather 35 coins and conquer rival Pokémon while navigating electric surge hazards.",
+  "lanes": 3,
+  "ticks": 35,
+  "starting_resources": {
+    "coins": 10
+  },
+  "objective": {
+    "type": "collect_coins",
+    "min_survivors": 1,
+    "target_coins": 35,
+    "target_tick": 35
+  },
+  "enemy_team": [
+    "gengar",
+    "onix",
+    "mewtwo"
+  ],
+  "map": [
+    { "scenario_id": "coin_race", "lane": 0, "tile_index": 1, "tile_type": "coin_cache" },
+    { "scenario_id": "coin_race", "lane": 0, "tile_index": 3, "tile_type": "question_block" },
+    { "scenario_id": "coin_race", "lane": 0, "tile_index": 6, "tile_type": "coin_cache" },
+    { "scenario_id": "coin_race", "lane": 1, "tile_index": 2, "tile_type": "pipe" },
+    { "scenario_id": "coin_race", "lane": 1, "tile_index": 4, "tile_type": "coin_cache" },
+    { "scenario_id": "coin_race", "lane": 1, "tile_index": 5, "tile_type": "question_block" },
+    { "scenario_id": "coin_race", "lane": 2, "tile_index": 1, "tile_type": "coin_cache" },
+    { "scenario_id": "coin_race", "lane": 2, "tile_index": 3, "tile_type": "hazard_zone" },
+    { "scenario_id": "coin_race", "lane": 2, "tile_index": 6, "tile_type": "coin_cache" }
+  ],
+  "hazard_schedule": [
+    { "scenario_id": "coin_race", "tick": 6, "type": "electric_spark", "lane": 2, "params": { "damage": 22 } },
+    { "scenario_id": "coin_race", "tick": 14, "type": "electric_spark", "lane": 0, "params": { "damage": 24 } },
+    { "scenario_id": "coin_race", "tick": 22, "type": "electric_spark", "lane": 1, "params": { "damage": 28 } },
+    { "scenario_id": "coin_race", "tick": 30, "type": "electric_spark", "lane": 2, "params": { "damage": 30 } }
+  ]
+}

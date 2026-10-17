@@ -1,0 +1,35 @@
+{
+  "id": "castle_siege",
+  "name": "Bowser's Castle: Lava Siege",
+  "description": "Storm King Bowser's fortified volcanic keep, dodging crushing Thwomps and lava plumes to conquer the castle.",
+  "lanes": 3,
+  "ticks": 40,
+  "starting_resources": {
+    "coins": 25
+  },
+  "objective": {
+    "type": "defeat_all",
+    "min_survivors": 1,
+    "target_coins": 0,
+    "target_tick": 40
+  },
+  "enemy_team": [
+    "koopa_troopa",
+    "electabuzz",
+    "bowser"
+  ],
+  "map": [
+    { "scenario_id": "castle_siege", "lane": 0, "tile_index": 2, "tile_type": "hazard_zone" },
+    { "scenario_id": "castle_siege", "lane": 0, "tile_index": 5, "tile_type": "question_block" },
+    { "scenario_id": "castle_siege", "lane": 1, "tile_index": 3, "tile_type": "lava" },
+    { "scenario_id": "castle_siege", "lane": 1, "tile_index": 6, "tile_type": "coin_cache" },
+    { "scenario_id": "castle_siege", "lane": 2, "tile_index": 2, "tile_type": "hazard_zone" },
+    { "scenario_id": "castle_siege", "lane": 2, "tile_index": 4, "tile_type": "pipe" }
+  ],
+  "hazard_schedule": [
+    { "scenario_id": "castle_siege", "tick": 8, "type": "thwomp", "lane": 0, "params": { "damage": 35 } },
+    { "scenario_id": "castle_siege", "tick": 16, "type": "lava_surge", "lane": 1, "params": { "damage": 30, "burn": true } },
+    { "scenario_id": "castle_siege", "tick": 24, "type": "thwomp", "lane": 2, "params": { "damage": 35 } },
+    { "scenario_id": "castle_siege", "tick": 34, "type": "lava_surge", "lane": 1, "params": { "damage": 36, "burn": true } }
+  ]
+}

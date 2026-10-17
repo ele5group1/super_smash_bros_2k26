@@ -1,0 +1,10 @@
+{
+  "include": [
+    "battle-sim/backend"
+  ],
+  "extraPaths": [
+    "battle-sim/backend",
+    "battle-sim/backend/app"
+  ],
+  "reportMissingImports": "none"
+}

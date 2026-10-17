@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipe Ambush analytics panel</title>
+<style>
+:root {
+  --surface-1: #f5f4f0; --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+  --border: rgba(11,11,11,0.10); --border-strong: rgba(11,11,11,0.25);
+  --fill-accent: #2a78d6; --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --surface-1: #1a1a19; --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #898781;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.25); --fill-accent: #3987e5; }
+}
+body { font-family: var(--font-sans); background: transparent; color: var(--text-primary); margin: 0; padding: 24px; max-width: 760px; font-size: 16px; line-height: 1.7; }
+button, select, input { font: inherit; color: inherit; }
+button { background: transparent; border: 0.5px solid var(--border-strong); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+select { background: var(--surface-1); border: 0.5px solid var(--border); border-radius: 8px; padding: 4px 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<h2 class="sr-only">Interactive analytics panel for the Pipe Ambush scenario. It shows predicted win rate with an interval, survivor distribution, loss causes, and a comparison of early healing spends across seeded runs.</h2>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 1.25rem;">
+  <div style="background: var(--surface-1); border-radius: 12px; padding: 1rem;">
+    <div style="font-size: 13px; color: var(--text-secondary);">Predicted win rate</div>
+    <div style="font-size: 24px; font-weight: 500;" id="m-win">0%</div>
+    <div style="font-size: 12px; color: var(--text-muted);" id="m-ci"></div>
+  </div>
+  <div style="background: var(--surface-1); border-radius: 12px; padding: 1rem;">
+    <div style="font-size: 13px; color: var(--text-secondary);">Reserve kept for later</div>
+    <div style="font-size: 24px; font-weight: 500;" id="m-reserve">20</div>
+    <div style="font-size: 12px; color: var(--text-muted);">coins, revive costs 8</div>
+  </div>
+  <div style="background: var(--surface-1); border-radius: 12px; padding: 1rem;">
+    <div style="font-size: 13px; color: var(--text-secondary);">Best early spend</div>
+    <div style="font-size: 24px; font-weight: 500;" id="m-best">0</div>
+    <div style="font-size: 12px; color: var(--text-muted);" id="m-best-rate"></div>
+  </div>
+</div>
+
+<div style="border: 0.5px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+    <label style="font-size: 14px; color: var(--text-secondary); min-width: 170px;">Coins spent on early heal</label>
+    <input type="range" min="0" max="20" step="1" value="5" id="heal" oninput="render()" style="flex: 1; min-width: 160px;">
+    <span style="font-size: 14px; font-weight: 500; min-width: 24px;" id="heal-out">5</span>
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+    <label style="font-size: 14px; color: var(--text-secondary); min-width: 170px;">Healer in team</label>
+    <input type="checkbox" id="healer" onchange="render()">
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <label style="font-size: 14px; color: var(--text-secondary); min-width: 170px;">Seeds per estimate</label>
+    <select id="seeds" onchange="render()">
+      <option value="100">100</option>
+      <option value="300" selected>300</option>
+      <option value="1000">1000</option>
+    </select>
+  </div>
+</div>
+
+<div style="margin-bottom: 1.25rem;">
+  <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Survivors at exit (descriptive)</div>
+  <div id="dist" style="display: flex; align-items: flex-end; gap: 6px; height: 130px;"></div>
+</div>
+
+<div style="margin-bottom: 1.25rem;">
+  <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Why losses happen (diagnostic)</div>
+  <div id="causes" style="font-size: 14px; color: var(--text-secondary); line-height: 1.7;"></div>
+</div>
+
+<div>
+  <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">Healing spend comparison (prescriptive)</div>
+  <div id="options"></div>
+</div>
+
+<script>
+function rng(s) {
+  return function () {
+    s = s + 0x6D2B79F5 | 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function sim(heal, healer, n) {
+  let wins = 0;
+  const dist = [0, 0, 0, 0, 0];
+  const causes = { healed: 0, revived: 0, none: 0 };
+  for (let i = 0; i < n; i++) {
+    const r = rng(1000 + i * 7919);
+    const hp = [100, 100, 100, 100];
+    let reserve = 20 - heal, healed = false, revived = false;
+    for (let t = 0; t < 40; t++) {
+      if (t === 10 && heal > 0) {
+        let lo = -1;
+        hp.forEach((h, k) => { if (h > 0 && (lo < 0 || h < hp[lo])) lo = k; });
+        if (lo >= 0) { hp[lo] = Math.min(100, hp[lo] + heal * 4); healed = true; }
+      }
+      if (t === 22 && reserve >= 8) {
+        const d = hp.findIndex(h => h <= 0);
+        if (d >= 0) { hp[d] = 40; reserve -= 8; revived = true; }
+      }
+      if (healer) {
+        let lo = -1;
+        hp.forEach((h, k) => { if (h > 0 && (lo < 0 || h < hp[lo])) lo = k; });
+        if (lo >= 0) hp[lo] = Math.min(100, hp[lo] + 1);
+      }
+      if (r() < 0.22) {
+        const a = [];
+        hp.forEach((h, k) => { if (h > 0) a.push(k); });
+        if (a.length) { const v = a[Math.floor(r() * a.length)]; hp[v] -= 35; }
+      }
+    }
+    const alive = hp.filter(h => h > 0).length;
+    dist[alive]++;
+    if (alive >= 2) wins++;
+    else causes[healed ? 'healed' : revived ? 'revived' : 'none']++;
+  }
+  const p = wins / n;
+  return { rate: p, ci: 1.96 * Math.sqrt(p * (1 - p) / n) * 100, dist, causes, n, wins };
+}
+
+function render() {
+  const heal = +document.getElementById('heal').value;
+  const healer = document.getElementById('healer').checked;
+  const n = +document.getElementById('seeds').value;
+  document.getElementById('heal-out').textContent = heal;
+  document.getElementById('m-reserve').textContent = 20 - heal;
+
+  const s = sim(heal, healer, n);
+  document.getElementById('m-win').textContent = Math.round(s.rate * 100) + '%';
+  document.getElementById('m-ci').textContent = '±' + Math.round(s.ci) + ' pts across ' + n + ' seeds';
+
+  const maxD = Math.max(...s.dist, 1);
+  document.getElementById('dist').innerHTML = s.dist.map((c, k) =>
+    '<div style="flex: 1; text-align: center;">' +
+    '<div style="height: ' + (Math.round(c / maxD * 100) + 2) + 'px; background: var(--fill-accent); border-radius: 4px 4px 0 0; width: 70%; margin: 0 auto;"></div>' +
+    '<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">' + k + ' alive</div>' +
+    '<div style="font-size: 12px; color: var(--text-muted);">' + Math.round(c / n * 100) + '%</div>' +
+    '</div>'
+  ).join('');
+
+  const losses = n - s.wins;
+  const lossLine = (count, label) => losses ? label + ': ' + Math.round(count / losses * 100) + '% of losses' : label + ': no losses';
+  document.getElementById('causes').innerHTML =
+    '<div>' + lossLine(s.causes.healed, 'Early heal spent, but too few creatures held') + '</div>' +
+    '<div>' + lossLine(s.causes.revived, 'Reserve revived one creature, still one short') + '</div>' +
+    '<div>' + lossLine(s.causes.none, 'No coins used, boss hits went unanswered') + '</div>';
+
+  const opts = [0, 5, 10, 15, 20];
+  const res = opts.map(h => ({ h, rate: sim(h, healer, n).rate }));
+  const best = res.reduce((a, b) => b.rate > a.rate ? b : a);
+  document.getElementById('m-best').textContent = best.h;
+  document.getElementById('m-best-rate').textContent = Math.round(best.rate * 100) + '% predicted win rate';
+
+  document.getElementById('options').innerHTML = res.map(o => {
+    const isSel = o.h === heal;
+    const isBest = o.h === best.h;
+    return '<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">' +
+      '<div style="font-size: 14px; color: var(--text-secondary); min-width: 90px;">Spend ' + o.h + '</div>' +
+      '<div style="flex: 1; background: var(--surface-1); border-radius: 6px; height: 18px; overflow: hidden; outline: ' + (isSel ? '1px solid var(--border-strong)' : 'none') + ';">' +
+      '<div style="height: 100%; width: ' + Math.round(o.rate * 100) + '%; background: ' + (isBest ? 'var(--fill-accent)' : 'var(--border-strong)') + ';"></div></div>' +
+      '<div style="font-size: 14px; font-weight: 500; min-width: 80px;">' + Math.round(o.rate * 100) + '%' + (isBest ? ' best' : '') + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+render();
+</script>
+</body>
+</html>

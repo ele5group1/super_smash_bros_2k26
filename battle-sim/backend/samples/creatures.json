@@ -1,0 +1,44 @@
+[
+  {
+    "id": "sample_mario",
+    "name": "Mario Striker",
+    "type": "fire",
+    "hp": 150,
+    "attack": 52,
+    "speed": 60,
+    "moves": [
+      "fireball",
+      "super_jump"
+    ],
+    "source": "builtin",
+    "avatar": null
+  },
+  {
+    "id": "sample_pikachu",
+    "name": "Pikachu Spark",
+    "type": "electric",
+    "hp": 120,
+    "attack": 54,
+    "speed": 85,
+    "moves": [
+      "thunderbolt",
+      "quick_attack"
+    ],
+    "source": "builtin",
+    "avatar": null
+  },
+  {
+    "id": "sample_puff_bird",
+    "name": "Puff Bird",
+    "type": "electric",
+    "hp": 125,
+    "attack": 42,
+    "speed": 68,
+    "moves": [
+      "spark_zap",
+      "charge_dash"
+    ],
+    "source": "builtin",
+    "avatar": null
+  }
+]

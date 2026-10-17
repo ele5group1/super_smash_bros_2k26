@@ -1,0 +1,12 @@
+{
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/battle-sim/backend",
+    "${workspaceFolder}/battle-sim/backend/app",
+    "${workspaceFolder}/battle-sim"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/battle-sim/backend",
+    "${workspaceFolder}/battle-sim/backend/app",
+    "${workspaceFolder}/battle-sim"
+  ]
+}
