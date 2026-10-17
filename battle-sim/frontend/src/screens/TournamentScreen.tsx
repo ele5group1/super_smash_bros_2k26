@@ -14,25 +14,29 @@ export const TournamentScreen: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<TournamentMatch | null>(null);
   const { success, error: toastError } = useToast();
 
-  const handleSimulate = async () => {
+  const handleSimulate = async (silent = false) => {
     setLoading(true);
     try {
-      soundFX.playCoin();
+      if (!silent) soundFX.playCoin();
       const res = await api.runTournament(squadSize);
       setReport(res);
       setSelectedMatch(res.rounds[res.rounds.length - 1]?.matches[0] || null);
-      soundFX.playVictory();
-      success("Championship tournament simulated successfully!");
+      if (!silent) {
+        soundFX.playVictory();
+        success("Championship tournament simulated successfully!");
+      }
     } catch (err: any) {
-      toastError("Failed to simulate tournament", err.message);
+      if (!silent) toastError("Failed to simulate tournament", err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Initial run on mount
-    handleSimulate();
+    const t = setTimeout(() => {
+      handleSimulate(true);
+    }, 50);
+    return () => clearTimeout(t);
   }, []);
 
   return (
@@ -81,7 +85,7 @@ export const TournamentScreen: React.FC = () => {
           <Button
             id="simulate-tournament-btn"
             variant="primary"
-            onClick={handleSimulate}
+            onClick={() => handleSimulate(false)}
             isLoading={loading}
           >
             🎲 New Tournament

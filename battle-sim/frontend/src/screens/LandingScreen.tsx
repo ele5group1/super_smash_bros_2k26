@@ -19,7 +19,7 @@ export const LandingScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     Promise.all([api.getScenarios(), api.getCreatures()])
-      .then(async ([scs, creats]) => {
+      .then(([scs, creats]) => {
         if (!isMounted) return;
         setScenarios(scs);
         const cmap: Record<string, Creature> = {};
@@ -29,20 +29,24 @@ export const LandingScreen: React.FC = () => {
 
         if (scs.length > 0) {
           setPreviewScenario(scs[0]);
-          try {
-            const res = await api.createBattle({
-              scenario_id: scs[0].id,
-              player_team: ['ember_fox', 'bubble_toad', 'moss_shroom', 'volt_hedgehog'],
-              seed: 42,
-              personality: 'opportunistic',
-            });
-            const bdata = await api.getBattle(res.battle_id);
-            if (isMounted) {
-              setPreviewBattle(bdata.battle);
+          // Defer background simulation until after initial paint
+          setTimeout(async () => {
+            if (!isMounted) return;
+            try {
+              const res = await api.createBattle({
+                scenario_id: scs[0].id,
+                player_team: ['ember_fox', 'bubble_toad', 'moss_shroom', 'volt_hedgehog'],
+                seed: 42,
+                personality: 'opportunistic',
+              });
+              const bdata = await api.getBattle(res.battle_id);
+              if (isMounted) {
+                setPreviewBattle(bdata.battle);
+              }
+            } catch (e) {
+              console.error('Failed to run preview battle', e);
             }
-          } catch (e) {
-            console.error('Failed to run preview battle', e);
-          }
+          }, 80);
         }
       })
       .catch((err: any) => {

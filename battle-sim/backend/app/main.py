@@ -118,6 +118,11 @@ async def add_security_headers(request, call_next):
     # Content-Security-Policy & security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
+    if request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif request.url.path in ("/", "/index.html") or not request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-cache"
+
     if not request.url.path.startswith("/api/docs") and not request.url.path.startswith("/api/openapi.json"):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "

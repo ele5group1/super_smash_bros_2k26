@@ -293,26 +293,51 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+const clientCache: {
+  scenarios?: Scenario[];
+  creatures?: Creature[];
+  synergies?: SynergyCombo[];
+  heroes?: Hero[];
+} = {};
+
 export const api = {
   checkHealth: () => request<{ status: string }>("/health"),
 
-  getScenarios: (source?: string) =>
-    request<Scenario[]>(`/scenarios${source ? `?source=${source}` : ""}`),
+  getScenarios: async (source?: string, forceRefresh = false) => {
+    if (!source && !forceRefresh && clientCache.scenarios) {
+      return clientCache.scenarios;
+    }
+    const data = await request<Scenario[]>(`/scenarios${source ? `?source=${source}` : ""}`);
+    if (!source) clientCache.scenarios = data;
+    return data;
+  },
 
-  listScenarios: (source?: string) =>
-    request<Scenario[]>(`/scenarios${source ? `?source=${source}` : ""}`),
+  listScenarios: async (source?: string) => {
+    if (!source && clientCache.scenarios) return clientCache.scenarios;
+    const data = await request<Scenario[]>(`/scenarios${source ? `?source=${source}` : ""}`);
+    if (!source) clientCache.scenarios = data;
+    return data;
+  },
 
   getScenario: (id: string) => request<Scenario>(`/scenarios/${id}`),
 
-  saveScenario: (scenario: Scenario) =>
-    request<Scenario>("/scenarios", {
+  saveScenario: async (scenario: Scenario) => {
+    clientCache.scenarios = undefined;
+    return request<Scenario>("/scenarios", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(scenario),
-    }),
+    });
+  },
 
-  getCreatures: (source?: string) =>
-    request<Creature[]>(`/creatures${source ? `?source=${source}` : ""}`),
+  getCreatures: async (source?: string, forceRefresh = false) => {
+    if (!source && !forceRefresh && clientCache.creatures) {
+      return clientCache.creatures;
+    }
+    const data = await request<Creature[]>(`/creatures${source ? `?source=${source}` : ""}`);
+    if (!source) clientCache.creatures = data;
+    return data;
+  },
 
   createBattle: (data: {
     scenario_id: string;
@@ -445,7 +470,12 @@ export const api = {
       method: "DELETE",
     }),
 
-  getHeroes: () => request<Hero[]>("/heroes"),
+  getHeroes: async () => {
+    if (clientCache.heroes) return clientCache.heroes;
+    const data = await request<Hero[]>("/heroes");
+    clientCache.heroes = data;
+    return data;
+  },
 
   // Analytics endpoints
   getBattleSummary: (id: string) => request<any>(`/battles/${id}/analytics/summary`),
@@ -480,7 +510,12 @@ export const api = {
   getJobStatus: (jobId: string) => request<any>(`/jobs/${jobId}`),
 
   // Synergies, Tournament, and Auto-tuning
-  getSynergies: () => request<SynergyCombo[]>("/synergies"),
+  getSynergies: async () => {
+    if (clientCache.synergies) return clientCache.synergies;
+    const data = await request<SynergyCombo[]>("/synergies");
+    clientCache.synergies = data;
+    return data;
+  },
   runTournament: (squadSize: number = 3, seed?: number) =>
     request<TournamentReport>("/tournament/simulate", {
       method: "POST",
