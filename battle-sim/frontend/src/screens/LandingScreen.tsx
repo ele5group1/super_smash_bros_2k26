@@ -92,17 +92,17 @@ export const LandingScreen: React.FC = () => {
       >
         <div>
           <Badge variant="fire" size="md" hasDot style={{ marginBottom: 'var(--space-3)' }}>
-            Deterministic Combat Engine v2.0
+            Mushroom Kingdom × Kanto Arena
           </Badge>
           <h1 className="text-display" style={{ marginBottom: 'var(--space-4)' }}>
-            Tactical Creature Battles with Replay Analytics.
+            Pick Your Squad. Master the Stages. Win the Cup.
           </h1>
           <p
             className="text-muted text-body"
             style={{ marginBottom: 'var(--space-6)', maxWidth: '520px' }}
           >
-            Draft your squad from elemental fighters like Ember Fox, Moss Shroom, and Crag Golem.
-            Simulate seeded lane skirmishes, inspect tick-by-tick event logs, and analyze counterfactual win rates.
+            Draft iconic fighters like Mario, Charizard, Link, and Pikachu. Outsmart warp pipes,
+            lava geysers, and Bowser boss mechanics in tactical lane skirmishes.
           </p>
 
           <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
@@ -113,28 +113,28 @@ export const LandingScreen: React.FC = () => {
               isLoading={quickStarting}
               onClick={handleQuickBattle}
             >
-              ⚔️ Start a Battle
+              ⚔️ Quick Match
             </Button>
             <Button
               variant="secondary"
               size="lg"
               onClick={() => navigate('/tournament')}
             >
-              🏆 8-Squad Tournament
+              🏆 Championship Cup
             </Button>
             <Button
               variant="ghost"
               size="lg"
               onClick={() => navigate('/scenarios')}
             >
-              Browse Scenarios
+              🗺️ Select Stage
             </Button>
             <Button
               variant="ghost"
               size="lg"
               onClick={() => navigate('/data')}
             >
-              Upload Data ↗
+              📦 Custom Mods
             </Button>
           </div>
         </div>
@@ -252,9 +252,9 @@ export const LandingScreen: React.FC = () => {
         <Card variant="sunken">
           <CardBody>
             <div style={{ fontSize: '1.8rem', marginBottom: 'var(--space-2)' }}>🎯</div>
-            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>100% Deterministic</h3>
+            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>100% Fair & Seeded</h3>
             <p className="text-muted text-small">
-              Every battle is seeded and tick-based. Identical teams and seeds guarantee reproducible combat logs.
+              No RNG robbery. Every match uses deterministic seed ticks, so identical teams and moves produce identical replays.
             </p>
           </CardBody>
         </Card>
@@ -262,9 +262,9 @@ export const LandingScreen: React.FC = () => {
         <Card variant="sunken">
           <CardBody>
             <div style={{ fontSize: '1.8rem', marginBottom: 'var(--space-2)' }}>📈</div>
-            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>Pre-Battle Monte Carlo</h3>
+            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>Matchup Calculator</h3>
             <p className="text-muted text-small">
-              Simulate hundreds of rounds in parallel to discover optimal team compositions and confidence intervals.
+              Simulate 50+ scrim matches against enemy squads to inspect win odds, survival rates, and best coin spend strategies.
             </p>
           </CardBody>
         </Card>
@@ -272,19 +272,19 @@ export const LandingScreen: React.FC = () => {
         <Card variant="sunken">
           <CardBody>
             <div style={{ fontSize: '1.8rem', marginBottom: 'var(--space-2)' }}>🗺️</div>
-            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>Dual-Way Map Authoring</h3>
+            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>Stage Builder & Balancer</h3>
             <p className="text-muted text-small">
-              Design hazard arenas using our drag-and-drop map builder with bi-directional JSON synchronization.
+              Place warp pipes, hazard spikes, and question blocks on custom lanes. Auto-tune enemy stats to hit a fair 50/50 win rate.
             </p>
           </CardBody>
         </Card>
 
         <Card variant="sunken">
           <CardBody>
-            <div style={{ fontSize: '1.8rem', marginBottom: 'var(--space-2)' }}>📤</div>
-            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>CSV & JSON Uploads</h3>
+            <div style={{ fontSize: '1.8rem', marginBottom: 'var(--space-2)' }}>📦</div>
+            <h3 className="text-h3" style={{ marginBottom: 'var(--space-1)' }}>Custom Fighters & Mods</h3>
             <p className="text-muted text-small">
-              Import custom creature rosters, scenarios, and external replay logs with immediate structural validation.
+              Import custom fighter CSVs and community stage packs with instant format validation and replay verification.
             </p>
           </CardBody>
         </Card>

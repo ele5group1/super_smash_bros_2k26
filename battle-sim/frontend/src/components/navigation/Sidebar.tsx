@@ -21,23 +21,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ backendOnline, onOpenShortcuts
   };
 
   const navItems = [
-    { to: '/', label: 'Overview', icon: '🏠', end: true },
-    { to: '/heroes', label: 'Heroes Directory', icon: '🛡️' },
-    { to: '/scenarios', label: 'Scenarios & Draft', icon: '⚔️' },
-    { to: '/tournament', label: 'Tournament', icon: '🏆' },
-    { to: '/plan', label: 'Battle Plan', icon: '🎯' },
-    { to: '/analytics', label: 'Analytics', icon: '📊' },
-    { to: '/author', label: 'Scenario Author', icon: '🛠️' },
-    { to: '/data', label: 'Data & Uploads', icon: '📁' },
+    { to: '/', label: 'Battle Lobby', icon: '🏠', end: true },
+    { to: '/heroes', label: 'Fighters Roster', icon: '🥊' },
+    { to: '/scenarios', label: 'Stages & Draft', icon: '⚔️' },
+    { to: '/tournament', label: 'Championship Cup', icon: '🏆' },
+    { to: '/plan', label: 'Matchup Calc', icon: '🎯' },
+    { to: '/analytics', label: 'Replay Theater', icon: '📜' },
+    { to: '/author', label: 'Stage Builder', icon: '🛠️' },
+    { to: '/data', label: 'Custom Mods & Packs', icon: '📦' },
     { to: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'is-collapsed' : ''}`} aria-label="Main navigation">
       <div className="sidebar-header">
-        <Link to="/" className="sidebar-brand" title="Puffcap Battle Simulator">
-          <div className="sidebar-logo">PB</div>
-          {!isCollapsed && <span>Puffcap Sim</span>}
+        <Link to="/" className="sidebar-brand" title="Puffcap Arena">
+          <div className="sidebar-logo">PA</div>
+          {!isCollapsed && <span>Puffcap Arena</span>}
         </Link>
         <button
           type="button"

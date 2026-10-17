@@ -31,6 +31,36 @@ export const AppContent: React.FC = () => {
   const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false);
   const [soundMuted, setSoundMuted] = useState<boolean>(() => soundFX.isMuted());
 
+  // Retro Easter Egg: Punchable Mario Question Block
+  const [punchedCoins, setPunchedCoins] = useState<number>(() => {
+    return Number(localStorage.getItem('puffcap_punched_coins') || '0');
+  });
+  const [isBouncing, setIsBouncing] = useState<boolean>(false);
+  const [showCoinPop, setShowCoinPop] = useState<boolean>(false);
+
+  // Retro Arcade: CRT Scanline Filter Toggle
+  const [crtEnabled, setCrtEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('puffcap_crt_enabled') === 'true';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-crt', String(crtEnabled));
+    localStorage.setItem('puffcap_crt_enabled', String(crtEnabled));
+  }, [crtEnabled]);
+
+  const handlePunchBlock = () => {
+    soundFX.playCoin();
+    setIsBouncing(true);
+    setShowCoinPop(true);
+    setPunchedCoins((prev) => {
+      const next = prev + 1;
+      localStorage.setItem('puffcap_punched_coins', String(next));
+      return next;
+    });
+    setTimeout(() => setIsBouncing(false), 180);
+    setTimeout(() => setShowCoinPop(false), 550);
+  };
+
   // Poll backend health status
   useEffect(() => {
     const checkStatus = async () => {
@@ -66,6 +96,41 @@ export const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Retro Easter Egg: Konami Code (↑ ↑ ↓ ↓ ← → ← → B A)
+  useEffect(() => {
+    const konamiSequence = [
+      'arrowup', 'arrowup', 'arrowdown', 'arrowdown',
+      'arrowleft', 'arrowright', 'arrowleft', 'arrowright',
+      'b', 'a'
+    ];
+    let keyIdx = 0;
+
+    const handleKonami = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      const key = e.key.toLowerCase();
+      if (key === konamiSequence[keyIdx]) {
+        keyIdx++;
+        if (keyIdx === konamiSequence.length) {
+          keyIdx = 0;
+          soundFX.playVictory();
+          setPunchedCoins((prev) => {
+            const next = prev + 100;
+            localStorage.setItem('puffcap_punched_coins', String(next));
+            return next;
+          });
+          alert('🌟 1-UP! KONAMI CODE ACTIVATED: +100 Coins & Super Star Boost!');
+        }
+      } else {
+        keyIdx = key === konamiSequence[0] ? 1 : 0;
+      }
+    };
+
+    window.addEventListener('keydown', handleKonami);
+    return () => window.removeEventListener('keydown', handleKonami);
+  }, []);
+
   return (
     <div className="app-layout">
       {/* Persistent Collapsible Sidebar for Desktop */}
@@ -82,7 +147,82 @@ export const AppContent: React.FC = () => {
             <Breadcrumbs />
           </div>
 
-          <div className="top-bar-right">
+          <div className="top-bar-right" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            {/* Punchable Mario Question Block */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={handlePunchBlock}
+                title="Hit the Question Block for coins!"
+                aria-label="Mario Question Block"
+                style={{
+                  background: 'linear-gradient(180deg, #f59e0b 0%, #d97706 100%)',
+                  border: '2px solid #78350f',
+                  borderRadius: '4px',
+                  color: '#fff',
+                  fontWeight: '900',
+                  fontSize: '13px',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transform: isBouncing ? 'translateY(-6px)' : 'none',
+                  transition: 'transform 0.08s ease',
+                  boxShadow: '0 3px 0 #78350f',
+                  padding: 0,
+                }}
+              >
+                ?
+              </button>
+
+              {showCoinPop && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-24px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    color: '#fbbf24',
+                    animation: 'floatUp 0.5s ease forwards',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  🪙+1
+                </span>
+              )}
+
+              {punchedCoins > 0 && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    color: '#fbbf24',
+                    marginLeft: '6px',
+                    fontFamily: 'monospace',
+                  }}
+                  title="Total punched coins"
+                >
+                  🪙{punchedCoins}
+                </span>
+              )}
+            </div>
+
+            {/* Retro CRT Scanlines Toggle */}
+            <button
+              type="button"
+              className={`ui-btn ui-btn-sm ${crtEnabled ? 'ui-btn-primary' : 'ui-btn-ghost'}`}
+              onClick={() => setCrtEnabled(!crtEnabled)}
+              title={crtEnabled ? "Disable Retro CRT Filter" : "Enable Retro CRT Scanlines"}
+              aria-label="Toggle Retro CRT Scanlines"
+              style={{ fontSize: '11px', padding: '2px 8px' }}
+            >
+              📺 CRT
+            </button>
+
             <button
               type="button"
               className="ui-btn ui-btn-secondary ui-btn-sm"

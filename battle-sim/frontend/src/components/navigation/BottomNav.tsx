@@ -3,12 +3,12 @@ import { NavLink } from 'react-router-dom';
 
 export const BottomNav: React.FC = () => {
   const items = [
-    { to: '/', label: 'Home', icon: '🏠', end: true },
-    { to: '/heroes', label: 'Heroes', icon: '🛡️' },
-    { to: '/scenarios', label: 'Draft', icon: '⚔️' },
-    { to: '/plan', label: 'Plan', icon: '🎯' },
-    { to: '/analytics', label: 'Analytics', icon: '📊' },
-    { to: '/data', label: 'Data', icon: '📁' },
+    { to: '/', label: 'Lobby', icon: '🏠', end: true },
+    { to: '/heroes', label: 'Fighters', icon: '🥊' },
+    { to: '/scenarios', label: 'Stages', icon: '⚔️' },
+    { to: '/tournament', label: 'Cup', icon: '🏆' },
+    { to: '/plan', label: 'Odds', icon: '🎯' },
+    { to: '/analytics', label: 'Replays', icon: '📜' },
   ];
 
   return (

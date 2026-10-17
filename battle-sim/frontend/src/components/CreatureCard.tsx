@@ -279,6 +279,25 @@ export const CreatureAvatar: React.FC<{
   }
 };
 
+const FLAVOR_QUOTES: Record<string, string> = {
+  mario: '"Let\'s-a go!" • All-round Mushroom Kingdom champion',
+  charizard: '"Spits fire hot enough to melt solid boulders."',
+  luigi: '"I\'m-a number one!" • High-mobility poltergeist master',
+  gengar: '"Hides in shadows, waiting for the critical strike."',
+  pikachu: '"Pika-pika!" • High voltage electric speed demon',
+  link_hero: '"Courage never yields." • Master sword tactician',
+  samus: '"Hunter of the stars." • Armored power beam sniper',
+  mewtwo: '"A legendary psychic creation of unparalleled psionic power."',
+  kirby: '"Poyo!" • Inhales hazards and turns the tides',
+  yoshi: '"Yoshi!" • Egg-flinging agile team defender',
+  bowser_boss: '"King of the Koopas • Lord of Molten Flame"',
+  ember_fox: '"Swift ember stalker of the cinder forest."',
+  bubble_toad: '"Splashes high-pressure bubbles in muddy lanes."',
+  moss_shroom: '"Durable fungal guardian absorbing heavy shocks."',
+  volt_hedgehog: '"Zips through obstacles with static fury."',
+  crag_golem: '"Living bedrock immovable by ordinary force."',
+};
+
 export const CreatureCard: React.FC<CreatureCardProps> = ({
   creature,
   selected = false,
@@ -334,6 +353,11 @@ export const CreatureCard: React.FC<CreatureCardProps> = ({
             <span>ATK: <strong style={{ color: "var(--text-primary)" }}>{creature.attack}</strong></span>
             <span>SPD: <strong style={{ color: "var(--text-primary)" }}>{creature.speed}</strong></span>
           </div>
+          {!compact && (
+            <div style={{ fontSize: "11px", fontStyle: "italic", color: "var(--text-muted)", marginTop: "3px" }}>
+              {FLAVOR_QUOTES[creature.id] || "Ready for combat in the arena."}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>

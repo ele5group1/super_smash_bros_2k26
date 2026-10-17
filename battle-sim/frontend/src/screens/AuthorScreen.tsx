@@ -203,9 +203,9 @@ export const AuthorScreen: React.FC = () => {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div>
-          <h1 className="text-h1">Scenario Visual Author & Balance Studio</h1>
+          <h1 className="text-h1">Stage Builder & Balance Tuner</h1>
           <p className="text-muted" style={{ marginTop: "var(--space-1)" }}>
-            Bi-directional visual map builder, real-time schema validation, and Monte Carlo balance metering.
+            Build Mario Maker-style custom stages with pipes and hazards, then auto-tune stats for fair combat.
           </p>
         </div>
 
@@ -229,7 +229,7 @@ export const AuthorScreen: React.FC = () => {
             onClick={handleRunBalanceAudit}
             isLoading={isAuditing}
           >
-            ⚖ Run Balance Audit
+            ⚖ Test Stage Fairness
           </Button>
 
           <Button
@@ -238,7 +238,7 @@ export const AuthorScreen: React.FC = () => {
             onClick={handleAutoTuneBalance}
             isLoading={isAutoTuning}
           >
-            🎯 Auto-Tune (50%)
+            🎯 Auto-Balance (50/50)
           </Button>
 
           <Button
@@ -248,7 +248,7 @@ export const AuthorScreen: React.FC = () => {
             disabled={jsonErrors.length > 0 || isSaving}
             isLoading={isSaving}
           >
-            💾 Save Scenario
+            💾 Save Stage
           </Button>
         </div>
       </div>
@@ -258,9 +258,9 @@ export const AuthorScreen: React.FC = () => {
         <CardBody>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-              <span style={{ fontWeight: "bold" }}>Scenario Balance Meter:</span>
+              <span style={{ fontWeight: "bold" }}>Stage Fairness Meter:</span>
               <Badge variant={isBalanced ? "success" : "error"} size="sm">
-                {isBalanced ? "WELL-BALANCED (25%–75% TARGET)" : "OUT OF TARGET BAND"}
+                {isBalanced ? "FAIR STAGE (25%–75% WIN BAND)" : "UNBALANCED STAGE"}
               </Badge>
             </div>
             <span style={{ fontWeight: "bold", fontSize: "18px", color: balanceColor }}>

@@ -36,57 +36,57 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     {
       id: 'screen-overview',
       category: 'Screen',
-      title: 'Overview & Landing',
-      subtitle: 'Home page and quick battle',
+      title: 'Battle Lobby',
+      subtitle: 'Jump into quick match or stage previews',
       action: () => { navigate('/'); onClose(); }
     },
     {
       id: 'screen-heroes',
       category: 'Screen',
-      title: 'Heroes Directory',
-      subtitle: 'Browse all 10 original combatants, stats, and move pools',
+      title: 'Fighters Roster',
+      subtitle: 'Browse all 10 fighters, base stats, and move pools',
       action: () => { navigate('/heroes'); onClose(); }
     },
     {
       id: 'screen-scenarios',
       category: 'Screen',
-      title: 'Scenarios & Squad Draft',
-      subtitle: 'Build squad and run simulation',
+      title: 'Stages & Squad Draft',
+      subtitle: 'Pick battleground and draft your starting lineup',
       action: () => { navigate('/scenarios'); onClose(); }
     },
     {
       id: 'screen-tournament',
       category: 'Screen',
-      title: 'Tournament Bracket Simulator',
-      subtitle: 'Single-elimination 8-squad championship bracket & MVP tracking',
+      title: 'Championship Cup (8 Squads)',
+      subtitle: 'Single-elimination championship bracket & tournament MVP',
       action: () => { navigate('/tournament'); onClose(); }
     },
     {
       id: 'screen-plan',
       category: 'Screen',
-      title: 'Battle Plan',
-      subtitle: 'Monte Carlo matchup win-rate matrix',
+      title: 'Matchup Calc & Strategy',
+      subtitle: 'Simulate lineup win odds against enemy squads',
       action: () => { navigate('/plan'); onClose(); }
     },
     {
       id: 'screen-analytics',
       category: 'Screen',
-      title: 'Analytics & Defeat Diagnostics',
-      subtitle: 'Macro telemetry, ranked loss causes, and team win rates',
+      title: 'Replay Theater & Match Breakdown',
+      subtitle: 'Step-by-step battle telemetry and what went wrong',
       action: () => { navigate('/analytics'); onClose(); }
     },
     {
       id: 'screen-author',
       category: 'Screen',
-      title: 'Scenario Author',
-      subtitle: 'Visual map editor and JSON editor',
+      title: 'Stage Builder & Balancer',
+      subtitle: 'Place pipes, hazards, and auto-balance stage win rates',
       action: () => { navigate('/author'); onClose(); }
     },
     {
       id: 'screen-data',
       category: 'Screen',
-      title: 'Data & Uploads',
-      subtitle: 'Import CSV/JSON rosters, scenarios & battle logs',
+      title: 'Custom Mods & Packs',
+      subtitle: 'Import custom fighter CSVs and community stage packs',
       action: () => { navigate('/data'); onClose(); }
     },
     {

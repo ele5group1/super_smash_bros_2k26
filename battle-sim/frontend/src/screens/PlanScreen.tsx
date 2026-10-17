@@ -219,9 +219,9 @@ export const PlanScreen: React.FC = () => {
     <div className="page-container">
       {/* Screen Title */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <h1 className="text-h1">Pre-Battle Plan & Calibration</h1>
+        <h1 className="text-h1">Matchup Odds & Strategy Calc</h1>
         <p className="text-muted" style={{ marginTop: "var(--space-1)" }}>
-          Monte Carlo probability matrix with empirical dataset benchmarking and confidence intervals.
+          Simulate battle odds across different coin investments and team lineups before locking into combat.
         </p>
       </div>
 
@@ -233,8 +233,8 @@ export const PlanScreen: React.FC = () => {
               <div style={{ fontSize: "2rem" }}>💡</div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-1)" }}>
-                  <Badge variant="warning" size="sm">TACTICAL RECOMMENDATION</Badge>
-                  <span className="text-small text-muted">Generated from 100 Monte Carlo seeds</span>
+                  <Badge variant="warning" size="sm">RECOMMENDED PLAY</Badge>
+                  <span className="text-small text-muted">Tested across 100 simulation runs</span>
                 </div>
                 <h3 className="text-h3" style={{ marginBottom: "var(--space-2)" }}>
                   {recommendation.explanation}

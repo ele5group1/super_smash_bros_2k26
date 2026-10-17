@@ -336,9 +336,31 @@ h3, .text-h3 {
   border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
-  transition: all var(--duration-short) var(--ease-standard);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.12s ease;
   user-select: none;
   white-space: nowrap;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+}
+.ui-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Retro Arcade CRT Scanline Filter */
+[data-crt="true"] body::after {
+  content: " ";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.28) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.03));
+  z-index: 99999;
+  background-size: 100% 3px, 4px 100%;
+  pointer-events: none;
+}
+
+@keyframes floatUp {
+  0% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, -24px); opacity: 0; }
 }
 
 .ui-btn-sm {

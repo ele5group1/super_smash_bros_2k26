@@ -51,22 +51,22 @@ export const AnalyticsScreen: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '32px' }}>📊</span>
+            <span style={{ fontSize: '32px' }}>📜</span>
             <h1 style={{ fontSize: '28px', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-              Battle Analytics & Loss Diagnostics
+              Replay Theater & Post-Match Breakdown
             </h1>
           </div>
           <p style={{ color: 'var(--text-secondary, #94a3b8)', marginTop: '6px', fontSize: '15px' }}>
-            Macro telemetry across simulated runs and verified upload datasets. Inspect team win rates, pacing, and ranked defeat causes.
+            Review combat pacing, team win rates, and fatal knockouts (environmental hazards vs fighter specials).
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <Button variant="secondary" onClick={() => navigate('/plan')}>
-            🎯 Plan Simulator
+            🎯 Strategy Calc
           </Button>
           <Button variant="secondary" onClick={() => navigate('/heroes')}>
-            🛡️ Heroes Directory
+            🥊 Fighters Roster
           </Button>
         </div>
       </div>
@@ -148,12 +148,12 @@ export const AnalyticsScreen: React.FC = () => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Top Ranked Loss Causes */}
+          {/* Top Ranked Knockout Causes */}
           <Card style={{ background: 'var(--card-bg, #1e293b)', borderRadius: '12px', border: '1px solid var(--border-color, #334155)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color, #334155)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                  🛑 Ranked Loss Causes & Defeat Catalysts
+                  🛑 Fatal Knockouts & Hazard Triggers
                 </h3>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                   {lossCauses.length} categories logged
@@ -163,8 +163,8 @@ export const AnalyticsScreen: React.FC = () => {
             <CardBody style={{ padding: '20px' }}>
               {lossCauses.length === 0 ? (
                 <EmptyState
-                  title="No Loss Events Recorded"
-                  description="Run more simulated battles or upload match logs to analyze fatal triggers."
+                  title="No Knockout Events Logged"
+                  description="Run more battles or watch replays to analyze fatal combat triggers."
                 />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -245,13 +245,13 @@ export const AnalyticsScreen: React.FC = () => {
           <Card style={{ background: 'var(--card-bg, #1e293b)', borderRadius: '12px', border: '1px solid var(--border-color, #334155)' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color, #334155)' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                👥 Squad Performance & Win Rates
+                👥 Squad Records & Match Win Rates
               </h3>
             </div>
             <CardBody style={{ padding: '0', overflowX: 'auto' }}>
               {teamStats.length === 0 ? (
                 <div style={{ padding: '30px' }}>
-                  <EmptyState title="No Team Data Available" description="Run simulations to generate team telemetry." />
+                  <EmptyState title="No Squad Records Yet" description="Simulate battles or complete Championship runs to log squad records." />
                 </div>
               ) : (
                 <table className="ui-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
