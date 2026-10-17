@@ -12,6 +12,7 @@ from .models import (
     CounterfactualRequest,
     TYPE_CHART,
     BUILTIN_MOVES,
+    SYNERGY_REGISTRY,
 )
 from .rng import SeededRNG
 from .ai import AIDecisionMaker
@@ -40,6 +41,7 @@ class TickEngine:
         self.battle_id = battle_id or str(uuid.uuid4())
         self.counterfactual = counterfactual
         self.early_heal_spend = early_heal_spend
+        self.boss_phase = 1
 
         # Player and Enemy creature entities
         self.player_team: List[Dict[str, Any]] = []
@@ -97,7 +99,7 @@ class TickEngine:
         coin_before: Optional[int] = None,
         coin_after: Optional[int] = None,
         event_type: Literal[
-            "hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision"
+            "hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision", "synergy", "boss_phase"
         ] = "info",
         lane: int = 0,
         tile: int = 0,
@@ -167,6 +169,10 @@ class TickEngine:
             if not any(p["hp"] > 0 for p in self.player_team):
                 outcome = "loss"
                 break
+
+            # Step 1.5: Boss phase check and Dual Synergy triggers
+            self._check_boss_phases(current_tick)
+            self._check_and_trigger_synergies(current_tick)
 
             # Step 2: Power-up timers decrement
             self._decrement_timers()
@@ -244,6 +250,13 @@ class TickEngine:
                 outcome = "win" if at_exit >= self.scenario.objective.min_survivors else "loss"
             elif self.scenario.objective.type == "collect_coins":
                 outcome = "win" if self.player_coins >= self.scenario.objective.target_coins else "loss"
+            elif self.scenario.objective.type == "defeat_boss":
+                target_id = self.scenario.objective.target_boss_id
+                boss = next((e for e in self.enemy_team if e["id"] == target_id), None) if target_id else (
+                    next((e for e in self.enemy_team if "boss" in e["id"] or e["max_hp"] >= 350), None)
+                )
+                boss_dead = boss is None or boss["hp"] <= 0
+                outcome = "win" if boss_dead and survivors >= self.scenario.objective.min_survivors else "loss"
             else:
                 outcome = "win" if survivors >= self.scenario.objective.min_survivors else "loss"
 
@@ -621,4 +634,115 @@ class TickEngine:
             return not any(e["hp"] > 0 for e in self.enemy_team)
         elif obj.type == "collect_coins":
             return self.player_coins >= obj.target_coins
+        elif obj.type == "defeat_boss":
+            target_id = obj.target_boss_id
+            if target_id:
+                boss = next((e for e in self.enemy_team if e["id"] == target_id), None)
+                if boss and boss["hp"] <= 0:
+                    return any(p["hp"] > 0 for p in self.player_team)
+            bosses = [e for e in self.enemy_team if "boss" in e["id"] or e["max_hp"] >= 350]
+            if bosses:
+                return all(b["hp"] <= 0 for b in bosses) and any(p["hp"] > 0 for p in self.player_team)
+            return not any(e["hp"] > 0 for e in self.enemy_team)
         return False
+
+    def _check_boss_phases(self, tick: int) -> None:
+        """Monitors boss entities and triggers phase transitions when crossing HP thresholds."""
+        for e in self.enemy_team:
+            is_boss = "boss" in e["id"] or e["max_hp"] >= 350 or (
+                self.scenario.objective.type == "defeat_boss" and e["id"] == self.scenario.objective.target_boss_id
+            )
+            if is_boss and e["hp"] > 0:
+                # Phase 2 threshold: HP <= 50%
+                if e["hp"] <= (e["max_hp"] * 0.5) and not e.get("phase_2_triggered"):
+                    e["phase_2_triggered"] = True
+                    self.boss_phase = 2
+                    # Buff boss attack and execute enrage geyser
+                    e["creature"] = e["creature"].model_copy(update={"attack": min(200, e["creature"].attack + 15)})
+                    self._add_event(
+                        tick=tick,
+                        actor=e["id"],
+                        action=f"🚨 [PHASE 2 ENRAGE] {e['creature'].name} enters Enraged Form! Attack surged!",
+                        target=None,
+                        damage=0,
+                        hp_before=e["hp"],
+                        hp_after=e["hp"],
+                        event_type="boss_phase",
+                        lane=e["lane"],
+                        tile=e["tile"],
+                    )
+                    # Strike all active player creatures with molten shockwave
+                    for p in self.player_team:
+                        if p["hp"] > 0:
+                            old = p["hp"]
+                            dmg = 12
+                            p["hp"] = max(1, p["hp"] - dmg)
+                            self._add_event(
+                                tick=tick,
+                                actor=e["id"],
+                                action="Struck by Boss Molten Shockwave",
+                                target=p["id"],
+                                damage=dmg,
+                                hp_before=old,
+                                hp_after=p["hp"],
+                                event_type="hazard",
+                                lane=p["lane"],
+                                tile=p["tile"],
+                            )
+
+    def _check_and_trigger_synergies(self, tick: int) -> None:
+        """Periodically triggers team-up dual combo moves between complementary active creatures."""
+        if tick % 6 != 0:
+            return
+
+        alive_player_ids = [p["id"] for p in self.player_team if p["hp"] > 0]
+        if len(alive_player_ids) < 2:
+            return
+
+        # Find matching synergy from registry
+        found_synergy = None
+        p1_id, p2_id = None, None
+        for (hero_a, hero_b), syn_data in SYNERGY_REGISTRY.items():
+            if hero_a in alive_player_ids and hero_b in alive_player_ids:
+                found_synergy = syn_data
+                p1_id, p2_id = hero_a, hero_b
+                break
+
+        if not found_synergy or not p1_id or not p2_id:
+            return
+
+        alive_enemies = [e for e in self.enemy_team if e["hp"] > 0]
+        if not alive_enemies:
+            return
+
+        # Target enemy with highest HP
+        target_enemy = max(alive_enemies, key=lambda e: e["hp"])
+        combo_damage = found_synergy["power"]
+        old_hp = target_enemy["hp"]
+        target_enemy["hp"] = max(0, target_enemy["hp"] - combo_damage)
+        ko = target_enemy["hp"] == 0
+
+        self._add_event(
+            tick=tick,
+            actor=f"{p1_id} + {p2_id}",
+            action=f"⚡ [Synergy Dual-Combo] {found_synergy['name']}!",
+            target=target_enemy["id"],
+            damage=combo_damage,
+            hp_before=old_hp,
+            hp_after=target_enemy["hp"],
+            status_change=found_synergy.get("effect"),
+            ko=ko,
+            event_type="synergy",
+            lane=target_enemy["lane"],
+            tile=target_enemy["tile"],
+        )
+
+        if found_synergy.get("effect") == "shield":
+            for p in self.player_team:
+                if p["hp"] > 0:
+                    p["status"] = "shield"
+                    p["status_timer"] = 3
+        elif found_synergy.get("effect") == "heal":
+            for p in self.player_team:
+                if p["hp"] > 0:
+                    p["hp"] = min(p["max_hp"], p["hp"] + 22)

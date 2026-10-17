@@ -185,6 +185,17 @@ BUILTIN_CREATURES_DATA = [
         "source": "builtin",
         "avatar": "wasp",
     },
+    {
+        "id": "bowser_boss",
+        "name": "Giga Bowser (Boss)",
+        "type": "fire",
+        "hp": 480,
+        "attack": 62,
+        "speed": 38,
+        "moves": ["giga_flame", "whirlwind_shell", "cataclysmic_stomp", "bowser_bomb"],
+        "source": "builtin",
+        "avatar": "bowser",
+    },
 ]
 
 

@@ -91,6 +91,71 @@ BUILTIN_MOVES: Dict[str, Move] = {
     "whirling_fortress": Move(id="whirling_fortress", name="Whirling Fortress", type=CreatureType.STONE, power=42, accuracy=0.90, cost_coins=1),
     "headbonk": Move(id="headbonk", name="Headbonk", type=CreatureType.STONE, power=28, accuracy=0.95),
     "rock_throw": Move(id="rock_throw", name="Rock Throw", type=CreatureType.STONE, power=32, accuracy=0.90),
+
+    # Boss Specials
+    "giga_flame": Move(id="giga_flame", name="Giga Flame Eruption", type=CreatureType.FIRE, power=60, accuracy=0.90, effect="burn", effect_chance=0.5, cost_coins=2),
+    "whirlwind_shell": Move(id="whirlwind_shell", name="Whirlwind Shell", type=CreatureType.STONE, power=52, accuracy=0.85, cost_coins=2),
+    "cataclysmic_stomp": Move(id="cataclysmic_stomp", name="Cataclysmic Stomp", type=CreatureType.STONE, power=65, accuracy=0.80, cost_coins=3),
+}
+
+# --- Synergies Dual Combos Registry ---
+SYNERGY_REGISTRY: Dict[tuple[str, str], Dict[str, Any]] = {
+    ("mario", "charizard"): {
+        "name": "Inferno Stomp",
+        "type": CreatureType.FIRE,
+        "power": 65,
+        "description": "Mario launches from Charizard's fiery wing for an incandescent crater strike.",
+        "effect": "burn",
+    },
+    ("luigi", "gengar"): {
+        "name": "Poltergeist Haunt",
+        "type": CreatureType.STONE,
+        "power": 60,
+        "description": "Luigi and Gengar phase through spectral shadows to disorient and stun all opponents.",
+        "effect": "stun",
+    },
+    ("bubble_toad", "stream_turtle"): {
+        "name": "Tsunami Bastion",
+        "type": CreatureType.WATER,
+        "power": 52,
+        "description": "A tidal surge floods enemy lanes while coating all allies in crystalline aqua shields.",
+        "effect": "shield",
+    },
+    ("ember_fox", "flame_salamander"): {
+        "name": "Twin Magma Burst",
+        "type": CreatureType.FIRE,
+        "power": 62,
+        "description": "Cross-lane fire torrent engulfs targets in intense searing magma.",
+        "effect": "burn",
+    },
+    ("spark_finch", "volt_hedgehog"): {
+        "name": "Thunder Cross Spark",
+        "type": CreatureType.ELECTRIC,
+        "power": 58,
+        "description": "Supercharged atmospheric and ground lightning arcs collide in an electric shockwave.",
+        "effect": "stun",
+    },
+    ("moss_shroom", "bramble_hound"): {
+        "name": "Verdant Overgrowth",
+        "type": CreatureType.GRASS,
+        "power": 54,
+        "description": "Ancient thorny vines erupt to ensnare foes while restoring vigor to allies.",
+        "effect": "heal",
+    },
+    ("crag_golem", "pebble_armadillo"): {
+        "name": "Avalanche Cataclysm",
+        "type": CreatureType.STONE,
+        "power": 64,
+        "description": "A pulverizing seismic tremor rolls across lanes, crushing enemy armor.",
+        "effect": "shield",
+    },
+    ("pikachu", "mario"): {
+        "name": "Super Volt Tackle",
+        "type": CreatureType.ELECTRIC,
+        "power": 62,
+        "description": "Mario propels Pikachu with high-jump momentum for a max-voltage meteor dash.",
+        "effect": "boost_speed",
+    },
 }
 
 
@@ -140,10 +205,11 @@ class HazardSchedule(BaseModel):
 
 
 class ScenarioObjective(BaseModel):
-    type: Literal["reach_exit", "defeat_all", "collect_coins", "survive_ticks"] = "reach_exit"
+    type: Literal["reach_exit", "defeat_all", "collect_coins", "survive_ticks", "defeat_boss"] = "reach_exit"
     min_survivors: int = Field(default=2, ge=1, le=4)
     target_coins: int = Field(default=0, ge=0)
     target_tick: int = Field(default=40, ge=1, le=100)
+    target_boss_id: Optional[str] = None
 
 
 class Scenario(BaseModel):
@@ -190,7 +256,7 @@ class Event(BaseModel):
     coin_after: int = 0
     coin_change: int = 0
     event_type: Literal[
-        "hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision"
+        "hazard", "move", "status", "pickup", "death", "objective", "info", "block", "decision", "synergy", "boss_phase"
     ] = "info"
     options_considered: Optional[List[Dict[str, Any]]] = None
     chosen_action: Optional[str] = None

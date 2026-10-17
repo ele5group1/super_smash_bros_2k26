@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSettings, ThemeMode, FontSize } from '../context/SettingsContext';
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card';
 import { Select } from '../components/ui/Select';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../components/ui/Toast';
+import { soundFX } from '../services/sound';
 
 export const SettingsScreen: React.FC = () => {
   const { theme, setTheme, reducedMotion, setReducedMotion, fontSize, setFontSize } = useSettings();
   const { success } = useToast();
+  const [, setSoundMutedState] = useState<boolean>(soundFX.isMuted());
 
   const handleSave = () => {
     success('Settings saved', 'Your preferences have been persisted to local storage.');
@@ -79,6 +81,55 @@ export const SettingsScreen: React.FC = () => {
                   aria-pressed={reducedMotion}
                 >
                   {reducedMotion ? 'Enabled (No Motion)' : 'Disabled (Full Motion)'}
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Audio & Sound Effects</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 'var(--font-weight-bold)' }}>Retro 8-Bit Web Audio Synthesizer</div>
+                  <div className="text-muted" style={{ fontSize: 'var(--font-size-small)' }}>
+                    Procedural combat sounds, elemental spell audio, dual-combo and victory fanfares.
+                  </div>
+                </div>
+                <Button
+                  id="sound-fx-toggle"
+                  variant={soundFX.isMuted() ? 'secondary' : 'primary'}
+                  size="sm"
+                  onClick={() => {
+                    const muted = soundFX.toggleMute();
+                    // Force re-render
+                    setSoundMutedState(muted);
+                  }}
+                  aria-pressed={!soundFX.isMuted()}
+                >
+                  {soundFX.isMuted() ? '🔇 Muted' : '🔊 Enabled'}
+                </Button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                <span className="text-muted text-small" style={{ alignSelf: 'center', marginRight: 'var(--space-2)' }}>
+                  Test Audio:
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => soundFX.playCoin()}>
+                  🪙 Coin
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => soundFX.playCombo()}>
+                  ⚡ Synergy
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => soundFX.playBossPhase()}>
+                  🔥 Boss Enrage
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => soundFX.playVictory()}>
+                  🏆 Victory
                 </Button>
               </div>
             </div>

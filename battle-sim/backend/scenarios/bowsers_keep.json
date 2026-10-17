@@ -1,0 +1,37 @@
+{
+  "id": "bowsers_keep",
+  "name": "Bowser's Molten Keep (Boss Battle)",
+  "description": "Infiltrate Bowser's magma stronghold to defeat Giga Bowser across escalating rage phases amidst volcanic hazards.",
+  "lanes": 3,
+  "ticks": 45,
+  "starting_resources": {
+    "coins": 30
+  },
+  "objective": {
+    "type": "defeat_boss",
+    "min_survivors": 1,
+    "target_coins": 0,
+    "target_tick": 45,
+    "target_boss_id": "bowser_boss"
+  },
+  "enemy_team": [
+    "iron_spikeling",
+    "thunder_wasp",
+    "bowser_boss"
+  ],
+  "map": [
+    { "scenario_id": "bowsers_keep", "lane": 0, "tile_index": 2, "tile_type": "hazard_zone" },
+    { "scenario_id": "bowsers_keep", "lane": 0, "tile_index": 5, "tile_type": "question_block" },
+    { "scenario_id": "bowsers_keep", "lane": 1, "tile_index": 3, "tile_type": "lava" },
+    { "scenario_id": "bowsers_keep", "lane": 1, "tile_index": 6, "tile_type": "coin_cache" },
+    { "scenario_id": "bowsers_keep", "lane": 2, "tile_index": 2, "tile_type": "lava" },
+    { "scenario_id": "bowsers_keep", "lane": 2, "tile_index": 5, "tile_type": "hazard_zone" }
+  ],
+  "hazard_schedule": [
+    { "scenario_id": "bowsers_keep", "tick": 6, "type": "lava_geyser", "lane": 1, "params": { "damage": 28, "burn": true } },
+    { "scenario_id": "bowsers_keep", "tick": 14, "type": "thud_block", "lane": 0, "params": { "damage": 34 } },
+    { "scenario_id": "bowsers_keep", "tick": 22, "type": "lava_geyser", "lane": 2, "params": { "damage": 32, "burn": true } },
+    { "scenario_id": "bowsers_keep", "tick": 32, "type": "molten_eruption", "lane": 1, "params": { "damage": 40, "burn": true } },
+    { "scenario_id": "bowsers_keep", "tick": 40, "type": "thud_block", "lane": 2, "params": { "damage": 38 } }
+  ]
+}

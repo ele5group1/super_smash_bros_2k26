@@ -55,6 +55,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       action: () => { navigate('/scenarios'); onClose(); }
     },
     {
+      id: 'screen-tournament',
+      category: 'Screen',
+      title: 'Tournament Bracket Simulator',
+      subtitle: 'Single-elimination 8-squad championship bracket & MVP tracking',
+      action: () => { navigate('/tournament'); onClose(); }
+    },
+    {
       id: 'screen-plan',
       category: 'Screen',
       title: 'Battle Plan',

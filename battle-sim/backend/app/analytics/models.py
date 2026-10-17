@@ -345,3 +345,65 @@ class JobStatusModel(BaseModel):
     progress: float = 0.0
     result: Optional[Any] = None
     error: Optional[str] = None
+
+
+# --- Tournament Models ---
+
+class TournamentSquadModel(BaseModel):
+    id: str
+    name: str
+    creatures: List[str]
+
+
+class TournamentMatchModel(BaseModel):
+    match_id: str
+    round_name: str
+    squad_a: TournamentSquadModel
+    squad_b: TournamentSquadModel
+    winner_squad: TournamentSquadModel
+    score_a: int = 0
+    score_b: int = 0
+    ticks_elapsed: int = 0
+    survivors: int = 0
+    summary: str = ""
+
+
+class TournamentRoundModel(BaseModel):
+    round_index: int
+    round_name: str
+    matches: List[TournamentMatchModel]
+
+
+class TournamentReportModel(BaseModel):
+    tournament_id: str
+    scenario_id: str
+    scenario_name: str
+    champion: TournamentSquadModel
+    runner_up: Optional[TournamentSquadModel] = None
+    mvp_creature: str = "mario"
+    total_matches: int = 7
+    rounds: List[TournamentRoundModel] = Field(default_factory=list)
+
+
+# --- Balance Auto-Tuning Models ---
+
+class OptimizationIterationModel(BaseModel):
+    iteration: int
+    multiplier: float
+    win_rate_percent: float
+    distance_from_target: float
+
+
+class OptimizationReportModel(BaseModel):
+    scenario_id: str
+    scenario_name: str
+    target_win_rate_percent: float
+    initial_win_rate_percent: float
+    optimized_win_rate_percent: float
+    recommended_parameter: str = "enemy_hp_multiplier"
+    recommended_multiplier: float
+    is_balanced: bool
+    iterations: List[OptimizationIterationModel] = Field(default_factory=list)
+    applied_modifications: Dict[str, Any] = Field(default_factory=dict)
+    recommendation_summary: str
+

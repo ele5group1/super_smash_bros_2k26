@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, Scenario, Creature, PredictionResult } from "../api";
+import { api, Scenario, Creature, PredictionResult, SynergyCombo } from "../api";
 import { CreatureCard, CreatureAvatar } from "../components/CreatureCard";
 import { Card, CardBody } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
@@ -17,6 +17,7 @@ export const SelectScreen: React.FC = () => {
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [creatures, setCreatures] = useState<Creature[]>([]);
+  const [synergies, setSynergies] = useState<SynergyCombo[]>([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>("");
   const [selectedTeam, setSelectedTeam] = useState<string[]>([]);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
@@ -37,12 +38,14 @@ export const SelectScreen: React.FC = () => {
     async function loadData() {
       setLoading(true);
       try {
-        const [scenList, creatList] = await Promise.all([
+        const [scenList, creatList, synList] = await Promise.all([
           api.getScenarios(),
           api.getCreatures(),
+          api.getSynergies().catch(() => []),
         ]);
         setScenarios(scenList);
         setCreatures(creatList);
+        setSynergies(synList || []);
 
         // Pick scenario from URL or localStorage or first available
         if (urlScenarioId && scenList.some((s) => s.id === urlScenarioId)) {
@@ -438,6 +441,58 @@ export const SelectScreen: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Active Synergy Dual-Combos */}
+        {(() => {
+          const activeSynergies = synergies.filter(
+            (s) => selectedTeam.includes(s.pair[0]) && selectedTeam.includes(s.pair[1])
+          );
+          if (activeSynergies.length === 0) return null;
+          return (
+            <div
+              style={{
+                background: "linear-gradient(90deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.12) 100%)",
+                border: "1px solid rgba(99, 102, 241, 0.35)",
+                borderRadius: "var(--radius-md)",
+                padding: "var(--space-3) var(--space-4)",
+                marginBottom: "var(--space-6)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--space-2)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "18px" }}>⚡</span>
+                <span style={{ fontWeight: "bold", fontSize: "14px", color: "var(--accent-primary)" }}>
+                  Active Team Synergies ({activeSynergies.length})
+                </span>
+                <Badge variant="info" size="sm">Dual-Combo Ready</Badge>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "var(--space-2)" }}>
+                {activeSynergies.map((syn) => (
+                  <div
+                    key={syn.id}
+                    style={{
+                      background: "rgba(0, 0, 0, 0.25)",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "6px 10px",
+                      border: "1px solid var(--border-subtle)",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div style={{ fontWeight: "bold", color: "#38bdf8" }}>
+                      ✨ {syn.name}
+                    </div>
+                    <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>
+                      {syn.pair[0]} + {syn.pair[1]} • {syn.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Live Debounced Win-Rate Meter */}
         <Card style={{ marginBottom: "var(--space-6)" }}>

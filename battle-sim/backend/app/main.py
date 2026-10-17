@@ -28,6 +28,7 @@ from .engine.models import (
     PlanPredictRequest,
     PlanCompareRequest,
     PlanRecommendRequest,
+    SYNERGY_REGISTRY,
 )
 from .engine.tick import TickEngine
 from .analytics import (
@@ -47,6 +48,8 @@ from .analytics import (
     BalanceReportModel,
     SensitivitySweepReportModel,
     JobStatusModel,
+    TournamentReportModel,
+    OptimizationReportModel,
     battle_summary,
     creature_stats,
     team_stats,
@@ -71,6 +74,8 @@ from .analytics import (
     audit_scenario_balance,
     balance_report,
     sensitivity_sweep,
+    auto_tune_balance,
+    simulate_tournament,
 )
 from .uploads.archive import extract_zip_in_memory
 from .uploads.validate import (
@@ -556,6 +561,64 @@ def check_job_progress_legacy(job_id: str):
     return prog
 
 
+# --- Synergies, Tournament & Auto-Tuning Endpoints ---
+
+class TournamentSimulateRequest(BaseModel):
+    scenario_id: str = "pipe_ambush"
+    seed: int = 1000
+    custom_squads: Optional[List[Dict[str, Any]]] = None
+
+
+class AutoTuneRequest(BaseModel):
+    target_win_rate: float = 0.50
+    parameter: str = "enemy_hp_multiplier"
+    seed_count: int = 30
+
+
+@app.get("/api/synergies")
+def get_synergies_endpoint():
+    result = []
+    for (h1, h2), data in SYNERGY_REGISTRY.items():
+        result.append({
+            "pair": [h1, h2],
+            "name": data["name"],
+            "type": data["type"].value if hasattr(data["type"], "value") else str(data["type"]),
+            "power": data["power"],
+            "description": data["description"],
+            "effect": data.get("effect"),
+        })
+    return result
+
+
+@app.post("/api/tournament/simulate", response_model=TournamentReportModel)
+def run_tournament_endpoint(req: TournamentSimulateRequest):
+    scenario = db.get_scenario(req.scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
+    all_c = {c.id: c for c in db.get_all_creatures()}
+    return simulate_tournament(
+        scenario=scenario,
+        custom_squads=req.custom_squads,
+        seed=req.seed,
+        all_creatures_map=all_c,
+    )
+
+
+@app.post("/api/author/scenarios/{scenario_id}/auto-tune", response_model=OptimizationReportModel)
+def auto_tune_scenario_balance_endpoint(scenario_id: str, req: AutoTuneRequest):
+    scenario = db.get_scenario(scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
+    all_c = {c.id: c for c in db.get_all_creatures()}
+    return auto_tune_balance(
+        scenario=scenario,
+        target_win_rate=req.target_win_rate,
+        parameter=req.parameter,
+        seed_count=req.seed_count,
+        all_creatures_map=all_c,
+    )
+
+
 # --- Heroes Directory Endpoint ---
 
 HERO_LORE = {
@@ -577,7 +640,9 @@ def get_heroes_directory():
     creatures = db.get_all_creatures(source_filter="builtin")
     heroes = []
     for c in creatures:
-        lore = HERO_LORE.get(c.id, {"role": "Tactical Combatant", "description": "Resilient warrior of the Puffcap Kingdom arena."})
+        if c.id not in HERO_LORE:
+            continue
+        lore = HERO_LORE[c.id]
         moves_detail = []
         for m_id in c.moves:
             m = BUILTIN_MOVES.get(m_id)

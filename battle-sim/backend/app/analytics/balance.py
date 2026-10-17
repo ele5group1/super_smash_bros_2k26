@@ -12,6 +12,8 @@ from .models import (
     BalanceReportModel,
     SensitivitySweepPointModel,
     SensitivitySweepReportModel,
+    OptimizationIterationModel,
+    OptimizationReportModel,
 )
 
 
@@ -219,4 +221,87 @@ def sensitivity_sweep(
         values=val_list,
         points=points,
         optimal_range=opt_range,
+    )
+
+
+def auto_tune_balance(
+    scenario: Scenario,
+    target_win_rate: float = 0.50,
+    parameter: str = "enemy_hp_multiplier",
+    seed_count: int = 30,
+    all_creatures_map: Optional[Dict[str, Creature]] = None,
+) -> OptimizationReportModel:
+    """
+    Automatically optimizes scenario parameters (e.g. enemy_hp_multiplier)
+    via binary search to guide overall squad win rate to the exact target (default 50%).
+    """
+    base_rep = balance_report(scenario=scenario, seed_count=seed_count, all_creatures_map=all_creatures_map)
+    initial_rate = base_rep.overall_win_rate_percent
+
+    low = 0.40
+    high = 2.20
+    best_mult = 1.0
+    best_rate = initial_rate
+    min_dist = abs(initial_rate - target_win_rate * 100)
+    iterations: List[OptimizationIterationModel] = []
+
+    for step in range(1, 6):
+        mid = round((low + high) / 2.0, 3)
+
+        scaled_cmap = all_creatures_map
+        if all_creatures_map:
+            scaled_cmap = {
+                cid: c.model_copy(update={"hp": max(1, int(c.hp * mid))}) if cid in scenario.enemy_team else c
+                for cid, c in all_creatures_map.items()
+            }
+
+        rep = balance_report(scenario=scenario, seed_count=seed_count, all_creatures_map=scaled_cmap)
+        cur_rate = rep.overall_win_rate_percent
+        dist = abs(cur_rate - target_win_rate * 100)
+
+        iterations.append(
+            OptimizationIterationModel(
+                iteration=step,
+                multiplier=mid,
+                win_rate_percent=cur_rate,
+                distance_from_target=round(dist, 1),
+            )
+        )
+
+        if dist < min_dist:
+            min_dist = dist
+            best_mult = mid
+            best_rate = cur_rate
+
+        if cur_rate > target_win_rate * 100:
+            low = mid
+        else:
+            high = mid
+
+    is_balanced = 25.0 <= best_rate <= 75.0
+    delta_percent = round((best_mult - 1.0) * 100, 1)
+    direction = "increase" if delta_percent > 0 else "decrease"
+    summary = (
+        f"Recommended {abs(delta_percent)}% {direction} to enemy HP (multiplier {best_mult}×) "
+        f"to achieve ~{best_rate}% win rate (target: {round(target_win_rate * 100, 1)}%)."
+    )
+
+    applied_mods = {
+        "parameter": parameter,
+        "multiplier": best_mult,
+        "enemy_hp_multiplier": best_mult,
+    }
+
+    return OptimizationReportModel(
+        scenario_id=scenario.id,
+        scenario_name=scenario.name,
+        target_win_rate_percent=round(target_win_rate * 100, 1),
+        initial_win_rate_percent=initial_rate,
+        optimized_win_rate_percent=best_rate,
+        recommended_parameter=parameter,
+        recommended_multiplier=best_mult,
+        is_balanced=is_balanced,
+        iterations=iterations,
+        applied_modifications=applied_mods,
+        recommendation_summary=summary,
     )

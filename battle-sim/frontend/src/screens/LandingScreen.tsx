@@ -114,6 +114,13 @@ export const LandingScreen: React.FC = () => {
             <Button
               variant="secondary"
               size="lg"
+              onClick={() => navigate('/tournament')}
+            >
+              🏆 8-Squad Tournament
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
               onClick={() => navigate('/scenarios')}
             >
               Browse Scenarios

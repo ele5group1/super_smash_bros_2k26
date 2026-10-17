@@ -5,6 +5,7 @@ import { TimelineStrip } from "./TimelineStrip";
 import { EventTicker } from "./EventTicker";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
+import { soundFX } from "../services/sound";
 
 interface ArenaProps {
   battle: BattleRecord;
@@ -57,6 +58,17 @@ export const Arena: React.FC<ArenaProps> = ({
     }
   }
 
+  // Boss battle tracking
+  const bossId = scenario?.enemy_team?.find(
+    (eid) => eid.includes("boss") || eid === "bowser_boss" || (creaturesMap[eid]?.hp || 0) >= 280
+  );
+  const isBossBattle = scenario?.objective?.type === "defeat_boss" || !!bossId;
+  const bossCreature = bossId ? creaturesMap[bossId] : null;
+  const bossMaxHp = bossCreature?.hp || 480;
+  const bossCurrentHp = bossId ? (enemyHps[bossId] ?? bossMaxHp) : 0;
+  const bossHpPercent = Math.max(0, Math.min(100, Math.round((bossCurrentHp / bossMaxHp) * 100)));
+  const isBossEnraged = bossCurrentHp > 0 && bossCurrentHp <= bossMaxHp * 0.5;
+
   // Playback timer loop
   useEffect(() => {
     if (isPlaying) {
@@ -101,9 +113,29 @@ export const Arena: React.FC<ArenaProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [maxTicks]);
 
-  // Flash combat effects
+  // Flash combat effects and play retro 8-bit sound effects
   useEffect(() => {
     const tickEvents = battle.events.filter((e) => e.tick === currentTick);
+
+    // 1. Boss Phase Shift
+    const bossPhaseEvent = tickEvents.find((e) => e.event_type === "boss_phase");
+    if (bossPhaseEvent) {
+      soundFX.playBossPhase();
+      setActiveEffect({ text: `🔥 BOSS ENRAGE: Phase 2 Molten Fury!`, type: "boss_phase" });
+      const t = setTimeout(() => setActiveEffect(null), 1400);
+      return () => clearTimeout(t);
+    }
+
+    // 2. Synergy Dual-Combo
+    const synergyEvent = tickEvents.find((e) => e.event_type === "synergy");
+    if (synergyEvent) {
+      soundFX.playCombo();
+      setActiveEffect({ text: `⚡ DUAL-COMBO: ${synergyEvent.action}`, type: "synergy" });
+      const t = setTimeout(() => setActiveEffect(null), 1200);
+      return () => clearTimeout(t);
+    }
+
+    // 3. Regular Hits / Hazard / Pickups
     const hit = tickEvents.find((e) => e.ko || e.damage > 0 || e.pickup || e.hazard_hit);
     if (hit) {
       let text = hit.action;
@@ -111,12 +143,26 @@ export const Arena: React.FC<ArenaProps> = ({
       if (hit.ko) {
         text = `KO! ${hit.target || hit.actor}`;
         type = "ko";
+        soundFX.playDefeat();
       } else if (hit.pickup) {
         text = `+Pickup: ${hit.pickup}`;
         type = "pickup";
+        soundFX.playCoin();
       } else if (hit.hazard_hit) {
         text = `Hazard: ${hit.hazard_hit}`;
         type = "hazard";
+        soundFX.playHit();
+      } else {
+        const act = (hit.action || "").toLowerCase();
+        if (act.includes("flame") || act.includes("fire") || act.includes("ember") || act.includes("giga")) {
+          soundFX.playFire();
+        } else if (act.includes("thunder") || act.includes("volt") || act.includes("spark") || act.includes("shock")) {
+          soundFX.playElectric();
+        } else if (act.includes("water") || act.includes("hydro") || act.includes("splash") || act.includes("surf")) {
+          soundFX.playWater();
+        } else {
+          soundFX.playHit();
+        }
       }
       setActiveEffect({ text, type });
       const t = setTimeout(() => setActiveEffect(null), 600);
@@ -124,7 +170,16 @@ export const Arena: React.FC<ArenaProps> = ({
     } else {
       setActiveEffect(null);
     }
-  }, [currentTick, battle]);
+
+    // End of battle fanfare
+    if (currentTick === maxTicks && currentTick > 1) {
+      if (battle.outcome === "win") {
+        soundFX.playVictory();
+      } else {
+        soundFX.playDefeat();
+      }
+    }
+  }, [currentTick, battle, maxTicks]);
 
   const lanesCount = scenario?.lanes || 3;
 
@@ -234,20 +289,100 @@ export const Arena: React.FC<ArenaProps> = ({
               transform: "translateX(-50%)",
               zIndex: 30,
               background:
-                activeEffect.type === "ko"
+                activeEffect.type === "boss_phase"
+                  ? "linear-gradient(90deg, #dc2626, #f97316)"
+                  : activeEffect.type === "synergy"
+                  ? "linear-gradient(90deg, #6366f1, #06b6d4)"
+                  : activeEffect.type === "ko"
                   ? "var(--color-error)"
                   : activeEffect.type === "hazard"
                   ? "#a855f7"
                   : "var(--color-warning)",
-              color: activeEffect.type === "hazard" || activeEffect.type === "ko" ? "#fff" : "#000",
+              color: "#fff",
               fontWeight: "bold",
               fontSize: "13px",
-              padding: "4px 16px",
+              padding: "6px 20px",
               borderRadius: "var(--radius-full)",
-              boxShadow: "var(--shadow-md)",
+              boxShadow: "0 0 20px rgba(0,0,0,0.8)",
+              animation: "pulse 0.4s ease infinite alternate",
             }}
           >
             {activeEffect.text}
+          </div>
+        )}
+
+        {/* Multi-Phase Boss Health Bar (if Boss battle) */}
+        {isBossBattle && bossCreature && (
+          <div
+            style={{
+              marginBottom: "var(--space-3)",
+              background: isBossEnraged
+                ? "linear-gradient(90deg, rgba(220, 38, 38, 0.25) 0%, rgba(153, 27, 27, 0.4) 100%)"
+                : "rgba(0, 0, 0, 0.4)",
+              border: isBossEnraged ? "1px solid #ef4444" : "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-md)",
+              padding: "var(--space-2) var(--space-3)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              boxShadow: isBossEnraged ? "0 0 15px rgba(239, 68, 68, 0.3)" : "none",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "16px" }}>👑</span>
+                <span style={{ fontWeight: "bold", fontSize: "14px", color: isBossEnraged ? "#fca5a5" : "#fff" }}>
+                  {bossCreature.name}
+                </span>
+                <Badge variant={bossCurrentHp <= 0 ? "neutral" : isBossEnraged ? "error" : "warning"} size="sm">
+                  {bossCurrentHp <= 0 ? "DEFEATED" : isBossEnraged ? "🔥 PHASE 2: ENRAGED" : "PHASE 1: ARMORED"}
+                </Badge>
+              </div>
+
+              <div style={{ fontSize: "12px", fontFamily: "monospace", color: "var(--text-muted)" }}>
+                {bossCurrentHp} / {bossMaxHp} HP ({bossHpPercent}%)
+              </div>
+            </div>
+
+            {/* Boss HP Bar */}
+            <div
+              style={{
+                width: "100%",
+                height: "10px",
+                background: "rgba(255, 255, 255, 0.1)",
+                borderRadius: "5px",
+                overflow: "hidden",
+                position: "relative",
+              }}
+            >
+              {/* 50% Phase Marker */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: 0,
+                  bottom: 0,
+                  width: "2px",
+                  background: "#fff",
+                  opacity: 0.6,
+                  zIndex: 2,
+                }}
+                title="Phase 2 Enrage threshold (50% HP)"
+              />
+              <div
+                style={{
+                  width: `${bossHpPercent}%`,
+                  height: "100%",
+                  background:
+                    bossCurrentHp <= 0
+                      ? "#4b5563"
+                      : isBossEnraged
+                      ? "linear-gradient(90deg, #f97316 0%, #dc2626 100%)"
+                      : "linear-gradient(90deg, #eab308 0%, #22c55e 100%)",
+                  transition: "width var(--duration-short) ease",
+                }}
+              />
+            </div>
           </div>
         )}
 

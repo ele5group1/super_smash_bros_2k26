@@ -66,7 +66,7 @@ export interface HazardSchedule {
 }
 
 export interface ScenarioObjective {
-  type: "reach_exit" | "defeat_all" | "collect_coins" | "survive_ticks";
+  type: "reach_exit" | "defeat_all" | "collect_coins" | "survive_ticks" | "defeat_boss";
   min_survivors: number;
   target_coins?: number;
   target_tick?: number;
@@ -100,7 +100,7 @@ export interface EventLog {
   pickup?: string | null;
   ko: boolean;
   coin_change: number;
-  event_type: "hazard" | "move" | "status" | "pickup" | "death" | "objective" | "info" | "block";
+  event_type: "hazard" | "move" | "status" | "pickup" | "death" | "objective" | "info" | "block" | "synergy" | "boss_phase";
 }
 
 export type BattleEvent = EventLog;
@@ -120,6 +120,74 @@ export interface BattleRecord {
   source: string;
   events: EventLog[];
   created_at?: string;
+}
+
+export interface SynergyCombo {
+  id: string;
+  name: string;
+  pair: [string, string];
+  power: number;
+  effect: string;
+  description: string;
+  anim: string;
+}
+
+export interface TournamentSquad {
+  id: string;
+  name: string;
+  members: string[];
+  seed: number;
+  color: string;
+}
+
+export interface TournamentMatch {
+  match_id: string;
+  round: string;
+  squad_a: TournamentSquad;
+  squad_b: TournamentSquad;
+  winner: TournamentSquad;
+  loser: TournamentSquad;
+  battle_id: string;
+  ticks_elapsed: number;
+  survivors_left: number;
+  coins_collected: number;
+  score_a: number;
+  score_b: number;
+}
+
+export interface TournamentRound {
+  name: string;
+  matches: TournamentMatch[];
+}
+
+export interface TournamentReport {
+  tournament_id: string;
+  squads: TournamentSquad[];
+  rounds: TournamentRound[];
+  champion: TournamentSquad;
+  runner_up: TournamentSquad;
+  mvp_creature: { id: string; name: string; kos: number; damage: number };
+}
+
+export interface OptimizationIteration {
+  iteration: number;
+  param_value: number;
+  win_rate_percent: number;
+  wins: number;
+  battles: number;
+  distance_to_target: number;
+}
+
+export interface OptimizationReport {
+  scenario_id: string;
+  parameter_name: string;
+  target_win_rate_percent: number;
+  initial_param_value: number;
+  optimal_param_value: number;
+  final_win_rate_percent: number;
+  converged: boolean;
+  total_iterations: number;
+  iterations: OptimizationIteration[];
 }
 
 export interface ReplayStatus {
@@ -410,6 +478,21 @@ export const api = {
       body: JSON.stringify({ parameter: param, min_val: 0.5, max_val: 1.5, steps: 5 }),
     }),
   getJobStatus: (jobId: string) => request<any>(`/jobs/${jobId}`),
+
+  // Synergies, Tournament, and Auto-tuning
+  getSynergies: () => request<SynergyCombo[]>("/synergies"),
+  runTournament: (squadSize: number = 3, seed?: number) =>
+    request<TournamentReport>("/tournament/simulate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ squad_size: squadSize, seed: seed || Date.now() % 100000 }),
+    }),
+  autoTuneScenario: (scenarioId: string, param: string = "enemy_hp_multiplier", targetWinRate: number = 50.0) =>
+    request<OptimizationReport>(`/author/scenarios/${scenarioId}/auto-tune`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parameter: param, target_win_rate_percent: targetWinRate }),
+    }),
 
   uploadFile: async (file: File, kind: string, uploadGroup?: string): Promise<UploadRecord> => {
     const formData = new FormData();

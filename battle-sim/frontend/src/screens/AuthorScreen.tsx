@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { api, Scenario } from "../api";
+import { api, Scenario, OptimizationReport } from "../api";
 import { Card, CardHeader, CardTitle, CardBody } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { useToast } from "../components/ui/Toast";
+import { soundFX } from "../services/sound";
 
 export const AuthorScreen: React.FC = () => {
   const { success, error: toastError } = useToast();
@@ -17,6 +18,8 @@ export const AuthorScreen: React.FC = () => {
   const [balanceData, setBalanceData] = useState<any | null>(null);
   const [isAuditing, setIsAuditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isAutoTuning, setIsAutoTuning] = useState<boolean>(false);
+  const [autoTuneReport, setAutoTuneReport] = useState<OptimizationReport | null>(null);
 
   // Palette of draggable/placeable tile tools
   const [selectedTool, setSelectedTool] = useState<string>("hazard");
@@ -62,6 +65,7 @@ export const AuthorScreen: React.FC = () => {
   const handleSelectScenario = async (id: string) => {
     setSelectedId(id);
     setBalanceData(null);
+    setAutoTuneReport(null);
     try {
       const sc = await api.getScenario(id);
       setScenarioObj(sc);
@@ -137,6 +141,39 @@ export const AuthorScreen: React.FC = () => {
     }
   };
 
+  const handleAutoTuneBalance = async () => {
+    if (!selectedId) return;
+    setIsAutoTuning(true);
+    try {
+      soundFX.playCoin();
+      const report = await api.autoTuneScenario(selectedId, "enemy_hp_multiplier", 50.0);
+      setAutoTuneReport(report);
+      soundFX.playVictory();
+      success(
+        "Auto-Tuning Complete",
+        `Optimal enemy HP multiplier: ${report.optimal_param_value}x (Win rate: ${report.final_win_rate_percent}%)`
+      );
+    } catch (e: any) {
+      toastError("Auto-Tuning Failed", e.message);
+    } finally {
+      setIsAutoTuning(false);
+    }
+  };
+
+  const handleApplyOptimalMultiplier = (multiplier: number) => {
+    if (!scenarioObj) return;
+    try {
+      const nextObj = JSON.parse(JSON.stringify(scenarioObj));
+      nextObj.enemy_hp_multiplier = multiplier;
+      setScenarioObj(nextObj);
+      setJsonText(JSON.stringify(nextObj, null, 2));
+      soundFX.playCoin();
+      success("Optimal Multiplier Applied", `enemy_hp_multiplier set to ${multiplier}x in scenario JSON.`);
+    } catch (e: any) {
+      toastError("Apply Failed", e.message);
+    }
+  };
+
   const handleSaveScenario = async () => {
     try {
       const parsed = JSON.parse(jsonText);
@@ -193,6 +230,15 @@ export const AuthorScreen: React.FC = () => {
             isLoading={isAuditing}
           >
             ⚖ Run Balance Audit
+          </Button>
+
+          <Button
+            id="auto-tune-btn"
+            variant="primary"
+            onClick={handleAutoTuneBalance}
+            isLoading={isAutoTuning}
+          >
+            🎯 Auto-Tune (50%)
           </Button>
 
           <Button
@@ -256,6 +302,93 @@ export const AuthorScreen: React.FC = () => {
           </div>
         </CardBody>
       </Card>
+
+      {/* Auto-Tuning Optimization Report Panel */}
+      {autoTuneReport && (
+        <Card style={{ marginBottom: "var(--space-6)", border: "1px solid rgba(99, 102, 241, 0.4)" }}>
+          <CardHeader>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>🎯</span>
+                <CardTitle>Auto-Tuning Optimizer Report</CardTitle>
+                <Badge variant={autoTuneReport.converged ? "success" : "warning"} size="sm">
+                  {autoTuneReport.converged ? "CONVERGED TO 50%" : "MAX ITERATIONS REACHED"}
+                </Badge>
+              </div>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleApplyOptimalMultiplier(autoTuneReport.optimal_param_value)}
+              >
+                Apply {autoTuneReport.optimal_param_value}x Multiplier to JSON
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardBody>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                gap: "var(--space-3)",
+                marginBottom: "var(--space-4)",
+              }}
+            >
+              <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Initial Multiplier</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold" }}>{autoTuneReport.initial_param_value}x</div>
+              </div>
+              <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Recommended Optimal Multiplier</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--accent-primary)" }}>
+                  {autoTuneReport.optimal_param_value}x
+                </div>
+              </div>
+              <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Simulated Win Rate at Optimal</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold", color: "var(--color-success)" }}>
+                  {autoTuneReport.final_win_rate_percent}% (Target: 50%)
+                </div>
+              </div>
+              <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Binary Search Steps</div>
+                <div style={{ fontSize: "16px", fontWeight: "bold" }}>{autoTuneReport.total_iterations} iterations</div>
+              </div>
+            </div>
+
+            {/* Iterations Progression Table */}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border-subtle)", textAlign: "left", color: "var(--text-muted)" }}>
+                    <th style={{ padding: "6px" }}>Step</th>
+                    <th style={{ padding: "6px" }}>Enemy HP Multiplier</th>
+                    <th style={{ padding: "6px" }}>Win Rate</th>
+                    <th style={{ padding: "6px" }}>Wins / Battles</th>
+                    <th style={{ padding: "6px" }}>Distance to 50%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {autoTuneReport.iterations.map((it) => (
+                    <tr key={it.iteration} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                      <td style={{ padding: "6px", fontWeight: "bold" }}>#{it.iteration}</td>
+                      <td style={{ padding: "6px" }}>{it.param_value}x</td>
+                      <td style={{ padding: "6px", color: Math.abs(it.win_rate_percent - 50) < 5 ? "var(--color-success)" : "#fff" }}>
+                        {it.win_rate_percent}%
+                      </td>
+                      <td style={{ padding: "6px", color: "var(--text-muted)" }}>
+                        {it.wins} / {it.battles}
+                      </td>
+                      <td style={{ padding: "6px", color: "var(--text-muted)" }}>±{it.distance_to_target}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Validation Errors Summary List if any */}
       {jsonErrors.length > 0 && (

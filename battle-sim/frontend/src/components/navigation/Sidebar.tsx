@@ -24,6 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ backendOnline, onOpenShortcuts
     { to: '/', label: 'Overview', icon: '🏠', end: true },
     { to: '/heroes', label: 'Heroes Directory', icon: '🛡️' },
     { to: '/scenarios', label: 'Scenarios & Draft', icon: '⚔️' },
+    { to: '/tournament', label: 'Tournament', icon: '🏆' },
     { to: '/plan', label: 'Battle Plan', icon: '🎯' },
     { to: '/analytics', label: 'Analytics', icon: '📊' },
     { to: '/author', label: 'Scenario Author', icon: '🛠️' },

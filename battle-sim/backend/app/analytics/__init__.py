@@ -17,6 +17,8 @@ from .models import (
     BalanceReportModel,
     SensitivitySweepReportModel,
     JobStatusModel,
+    TournamentReportModel,
+    OptimizationReportModel,
 )
 from .descriptive import (
     battle_summary,
@@ -52,5 +54,10 @@ from .prescriptive import (
 from .balance import (
     balance_report,
     sensitivity_sweep,
+    auto_tune_balance,
 )
+from .tournament import (
+    simulate_tournament,
+)
+
 

@@ -19,11 +19,14 @@ import { DataScreen } from './screens/DataScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HeroesScreen } from './screens/HeroesScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
+import { TournamentScreen } from './screens/TournamentScreen';
+import { soundFX } from './services/sound';
 
 export const AppContent: React.FC = () => {
   const [backendOnline, setBackendOnline] = useState<boolean>(true);
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
   const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false);
+  const [soundMuted, setSoundMuted] = useState<boolean>(() => soundFX.isMuted());
 
   // Poll backend health status
   useEffect(() => {
@@ -89,6 +92,19 @@ export const AppContent: React.FC = () => {
               <kbd className="kbd-key" style={{ fontSize: '10px' }}>Ctrl+K</kbd>
             </button>
 
+            <button
+              type="button"
+              className="ui-btn ui-btn-ghost ui-btn-sm"
+              onClick={() => {
+                const nextMuted = soundFX.toggleMute();
+                setSoundMuted(nextMuted);
+              }}
+              title={soundMuted ? "Unmute Sound" : "Mute Sound"}
+              aria-label={soundMuted ? "Unmute Sound" : "Mute Sound"}
+            >
+              {soundMuted ? "🔇" : "🔊"}
+            </button>
+
             <Link to="/settings" className="ui-btn ui-btn-ghost ui-btn-sm" title="Settings" aria-label="Settings">
               ⚙️
             </Link>
@@ -100,6 +116,7 @@ export const AppContent: React.FC = () => {
             <Route path="/" element={<LandingScreen />} />
             <Route path="/scenarios" element={<SelectScreen />} />
             <Route path="/scenarios/:id" element={<SelectScreen />} />
+            <Route path="/tournament" element={<TournamentScreen />} />
             <Route path="/battles/:id" element={<BattleScreen />} />
             <Route path="/battle/:id" element={<BattleScreen />} />
             <Route path="/report/:id" element={<ReportScreen />} />
