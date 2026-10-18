@@ -36,7 +36,7 @@ client = TestClient(app)
 
 
 def test_heroes_directory_endpoint():
-    """Verify GET /api/heroes returns rich profiles for original creatures only."""
+    """Verify GET /api/heroes returns rich profiles for the crossover roster."""
     res = client.get("/api/heroes")
     assert res.status_code == 200
     heroes = res.json()
@@ -49,13 +49,9 @@ def test_heroes_directory_endpoint():
     assert "crag_golem" in known_ids
     assert "volt_hedgehog" in known_ids
 
-    # Verify no trademarked third-party names
-    forbidden_terms = ["pikachu", "charizard", "mario", "luigi", "bowser", "squirtle"]
+    # Display names reproduce the requested crossover; stable IDs preserve saved records.
+    assert {"Mario", "Luigi", "Pikachu", "Charizard"} <= {h["name"] for h in heroes}
     for h in heroes:
-        for term in forbidden_terms:
-            assert term not in h["id"].lower()
-            assert term not in h["name"].lower()
-
         assert "role" in h
         assert "description" in h
         assert "moves_detail" in h
@@ -196,6 +192,10 @@ def test_predict_from_state_hidden_information_privacy():
         "current_tick": 4,
     }
 
+    import pytest
+    with pytest.raises(ValueError, match="pre-battle"):
+        predict_from_state(visible_state, scenario, all_c, seed_count=30)
+    visible_state.update(current_tick=1, creature_hps={}, coins=scenario.starting_coins)
     pred = predict_from_state(visible_state, scenario, all_c, seed_count=30)
     assert 0.0 <= pred.win_rate <= 1.0
     assert pred.visible_player_count == 2

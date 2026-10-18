@@ -226,7 +226,7 @@ export const ReportScreen: React.FC = () => {
               <strong style={{ color: cfResult.new_outcome === "win" ? "var(--color-success)" : "var(--color-error)" }}>
                 {cfResult.new_outcome.toUpperCase()}
               </strong>{" "}
-              (first divergent tick: T{cfResult.first_differing_tick}).
+              (first divergent tick: T{cfResult.first_divergent_tick ?? "none"}).
             </p>
 
             <div style={{ display: "flex", gap: "var(--space-6)", fontSize: "var(--font-size-small)" }}>
@@ -314,7 +314,7 @@ export const ReportScreen: React.FC = () => {
                     <div>Damage Dealt: <strong style={{ color: "var(--text-primary)" }}>{stat.damage_dealt}</strong></div>
                     <div>Damage Taken: <strong style={{ color: "var(--text-primary)" }}>{stat.damage_taken}</strong></div>
                     <div>KOs Scored: <strong style={{ color: "var(--color-warning)" }}>{stat.kos}</strong></div>
-                    <div>Hazard Ticks: <strong style={{ color: "var(--color-error)" }}>{stat.hazard_ticks}</strong></div>
+                    <div>Hazard Hits: <strong style={{ color: "var(--color-error)" }}>{stat.hazard_ticks}</strong></div>
                   </div>
                 </CardBody>
               </Card>

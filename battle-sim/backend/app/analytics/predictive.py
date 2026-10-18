@@ -61,14 +61,18 @@ def predict_win_rate(
     calibrate_with_battles: Optional[List[BattleRecord]] = None,
     include_mismatched: bool = False,
     mismatched_battle_ids: Optional[set] = None,
+    early_heal_spend: int = 0,
+    personality: str = "opportunistic",
 ) -> WinRatePredictionModel:
     """
     Runs seed_count deterministic battles with seeds base_seed + i.
     Returns win rate, 95% interval (Normal or Wilson), survivor distribution,
     average coins, and calibrated empirical comparison if uploaded battles provided.
     """
-    team_ids = tuple(sorted([c.id for c in team]))
-    cache_key = (scenario.id, team_ids, seed_count, base_seed, include_mismatched)
+    cache_key = (scenario.model_dump_json(),
+                 tuple(c.model_dump_json() for c in team),
+                 tuple(c.model_dump_json() for c in (enemy_creatures or [])),
+                 seed_count, base_seed, early_heal_spend, personality)
 
     if cache_key in _PREDICTION_CACHE and calibrate_with_battles is None:
         return _PREDICTION_CACHE[cache_key]
@@ -86,6 +90,8 @@ def predict_win_rate(
             player_creatures=team,
             enemy_creatures=enemies,
             seed=s,
+            early_heal_spend=early_heal_spend,
+            personality=personality,
         )
         res = engine.run()
         if res.outcome == "win":
@@ -107,7 +113,9 @@ def predict_win_rate(
         excluded_count = 0
 
         for b in calibrate_with_battles:
-            if sorted(b.player_team) == sorted([c.id for c in team]):
+            if (b.player_team == [c.id for c in team] and b.scenario_id == scenario.id
+                    and b.metadata.get("early_heal_spend", 0) == early_heal_spend
+                    and b.personality == personality):
                 if b.battle_id in mismatched_ids and not include_mismatched:
                     excluded_count += 1
                 else:
@@ -168,6 +176,7 @@ def predict_win_rate(
         win_rate=round(win_rate, 4),
         win_rate_percent=round(win_rate * 100, 1),
         confidence_interval_95=round(ci_half * 100, 2),
+        confidence_interval_percent=round(ci_half * 100, 2),
         interval_method=method,
         ci_lower=round(ci_lower * 100, 1),
         ci_upper=round(ci_upper * 100, 1),
@@ -179,6 +188,8 @@ def predict_win_rate(
     )
 
     if calibrate_with_battles is None:
+        if len(_PREDICTION_CACHE) >= 128:
+            _PREDICTION_CACHE.pop(next(iter(_PREDICTION_CACHE)))
         _PREDICTION_CACHE[cache_key] = result
 
     return result
@@ -191,77 +202,20 @@ def predict_from_state(
     seed_count: int = 100,
     base_seed: int = 2000,
 ) -> StatePredictionModel:
-    """
-    Given a mid-battle state, runs Monte Carlo predictions from that state forward.
-    STRICTLY ONLY uses information the player could see on screen:
-    - current_tick
-    - visible player creature HPs
-    - visible player coins
-    - visible alive enemy creatures
-    Does NOT read hidden enemy AI decision scores or hidden boss plans.
-    """
-    current_tick = state.get("current_tick", 1)
-    player_creature_ids = state.get("player_team", [])
-    creature_hps = state.get("creature_hps", {})
-
-    player_creatures: List[Creature] = []
-    for cid in player_creature_ids:
-        if cid in all_known_creatures:
-            c = all_known_creatures[cid]
-            # Copy with remaining visible HP
-            rem_hp = creature_hps.get(cid, c.hp)
-            if rem_hp > 0:
-                player_creatures.append(c.model_copy(update={"hp": rem_hp}))
-
-    # Visible enemies
-    visible_enemies: List[Creature] = []
-    for eid in scenario.enemy_team:
-        if eid in all_known_creatures:
-            e = all_known_creatures[eid]
-            e_rem_hp = creature_hps.get(eid, e.hp)
-            if e_rem_hp > 0:
-                visible_enemies.append(e.model_copy(update={"hp": e_rem_hp}))
-
-    if not player_creatures:
-        return StatePredictionModel(
-            current_tick=current_tick,
-            seed_count=seed_count,
-            predicted_win_rate=0.0,
-            predicted_win_rate_percent=0.0,
-            confidence_interval_95=0.0,
-            ci_lower=0.0,
-            ci_upper=0.0,
-            visible_allies_alive=0,
-            visible_enemies_alive=len(visible_enemies),
-        )
-
-    # Run simulations from mid-battle state forward
-    wins = 0
-    for i in range(seed_count):
-        eng = TickEngine(
-            scenario=scenario,
-            player_creatures=player_creatures,
-            enemy_creatures=visible_enemies,
-            seed=base_seed + i,
-        )
-        res = eng.run()
-        if res.outcome == "win":
-            wins += 1
-
-    rate = wins / seed_count
-    ci_half, ci_lower, ci_upper, _ = compute_confidence_interval(wins, seed_count)
-
-    return StatePredictionModel(
-        current_tick=current_tick,
-        seed_count=seed_count,
-        predicted_win_rate=round(rate, 4),
-        predicted_win_rate_percent=round(rate * 100, 1),
-        confidence_interval_95=round(ci_half * 100, 2),
-        ci_lower=round(ci_lower * 100, 1),
-        ci_upper=round(ci_upper * 100, 1),
-        visible_allies_alive=len(player_creatures),
-        visible_enemies_alive=len(visible_enemies),
-    )
+    """Compatibility entry point restricted to complete pre-battle configurations."""
+    if (state.get("current_tick", 1) != 1 or state.get("creature_hps")
+            or state.get("coins", scenario.starting_coins) != scenario.starting_coins):
+        raise ValueError("Only pre-battle predictions are supported; incomplete state cannot be resumed")
+    ids = state.get("player_team", [])
+    if not ids or any(cid not in all_known_creatures for cid in ids):
+        raise ValueError("Choose a known pre-battle squad")
+    team = [all_known_creatures[cid] for cid in ids]
+    enemies = [all_known_creatures[cid] for cid in scenario.enemy_team]
+    pred = predict_win_rate(scenario, team, seed_count=seed_count, base_seed=base_seed, enemy_creatures=enemies)
+    return StatePredictionModel(current_tick=1, seed_count=seed_count,
+        predicted_win_rate=pred.win_rate, predicted_win_rate_percent=pred.win_rate_percent,
+        confidence_interval_95=pred.confidence_interval_95, ci_lower=pred.ci_lower, ci_upper=pred.ci_upper,
+        visible_allies_alive=len(team), visible_enemies_alive=len(enemies))
 
 
 # --- Backward Compatible Wrappers ---

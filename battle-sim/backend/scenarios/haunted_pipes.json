@@ -1,0 +1,132 @@
+{
+  "id": "haunted_pipes",
+  "name": "Luigi's Haunted Pipe Escape",
+  "description": "Halloween in the Mushroom Kingdom! Mario and Pokemon allies must escort at least two survivors through cursed warp pipes to tile 7. Compare potion plans before facing Bowser's minions.",
+  "lanes": 3,
+  "ticks": 40,
+  "starting_resources": {
+    "coins": 20
+  },
+  "objective": {
+    "type": "reach_exit",
+    "min_survivors": 2,
+    "target_coins": 0,
+    "target_tick": 40
+  },
+  "enemy_team": [
+    "thorn_biter",
+    "pipe_lurker",
+    "thunder_wasp"
+  ],
+  "map": [
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 0,
+      "tile_index": 2,
+      "tile_type": "pipe"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 0,
+      "tile_index": 4,
+      "tile_type": "question_block"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 0,
+      "tile_index": 7,
+      "tile_type": "exit"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 1,
+      "tile_index": 1,
+      "tile_type": "pipe"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 1,
+      "tile_index": 3,
+      "tile_type": "hazard_zone"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 1,
+      "tile_index": 5,
+      "tile_type": "coin_cache"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 1,
+      "tile_index": 7,
+      "tile_type": "exit"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 2,
+      "tile_index": 2,
+      "tile_type": "hazard_zone"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 2,
+      "tile_index": 4,
+      "tile_type": "pipe"
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "lane": 2,
+      "tile_index": 7,
+      "tile_type": "exit"
+    }
+  ],
+  "hazard_schedule": [
+    {
+      "scenario_id": "haunted_pipes",
+      "tick": 2,
+      "type": "Cursed Piranha ambush",
+      "lane": 1,
+      "params": {
+        "damage": 22
+      }
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "tick": 4,
+      "type": "Jack-o-lantern fire",
+      "lane": 2,
+      "params": {
+        "damage": 30,
+        "burn": true
+      }
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "tick": 18,
+      "type": "Boo haunt",
+      "lane": 0,
+      "params": {
+        "damage": 25
+      }
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "tick": 25,
+      "type": "Pumpkin flame",
+      "lane": 1,
+      "params": {
+        "damage": 32,
+        "burn": true
+      }
+    },
+    {
+      "scenario_id": "haunted_pipes",
+      "tick": 32,
+      "type": "Midnight pipe curse",
+      "lane": 2,
+      "params": {
+        "damage": 28
+      }
+    }
+  ]
+}

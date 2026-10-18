@@ -37,11 +37,15 @@ def battle_summary(battle: BattleRecord) -> BattleSummaryModel:
 
     player_damage = sum(
         e.damage for e in battle.events
-        if e.damage > 0 and (e.actor in battle.player_team or (not battle.player_team and e.target == "crag_golem"))
+        if e.damage > 0 and e.event_type not in ("hazard", "status", "death")
+        and ((e.actor in battle.player_team and e.target not in battle.player_team)
+             or (not battle.player_team and e.target == "crag_golem"))
     )
     enemy_damage = sum(
         e.damage for e in battle.events
-        if e.damage > 0 and (e.actor not in battle.player_team if battle.player_team else e.target != "crag_golem")
+        if e.damage > 0 and e.event_type not in ("hazard", "status", "death")
+        and (e.actor not in battle.player_team and e.target in battle.player_team
+             if battle.player_team else e.target != "crag_golem")
     )
     pacing = "fast" if battle.ticks_elapsed <= 10 else ("slow" if battle.ticks_elapsed >= 30 else "moderate")
 
@@ -75,12 +79,12 @@ def creature_stats(battle: BattleRecord) -> List[CreatureStatsModel]:
             "ticks_spent_in_hazard_zones": 0,
             "status_effects_applied": 0,
             "survival": True,
-            "final_hp": 0,
+            "final_hp": battle.metadata.get("initial_hps", {}).get(cid, 0),
         }
 
     for ev in battle.events:
         # Damage dealt and KOs by player creatures
-        if ev.actor in stats_map:
+        if ev.actor in stats_map and ev.target not in stats_map and ev.event_type != "death":
             stats_map[ev.actor]["damage_dealt"] += max(0, ev.damage)
             if ev.ko:
                 stats_map[ev.actor]["kos"] += 1
@@ -88,7 +92,7 @@ def creature_stats(battle: BattleRecord) -> List[CreatureStatsModel]:
                 stats_map[ev.actor]["status_effects_applied"] += 1
 
         # Damage taken and survival by player creatures
-        if ev.target in stats_map:
+        if ev.target in stats_map and ev.event_type != "decision":
             if ev.damage > 0:
                 stats_map[ev.target]["damage_taken"] += ev.damage
             stats_map[ev.target]["final_hp"] = ev.hp_after
@@ -117,7 +121,7 @@ def team_stats(battles: List[BattleRecord]) -> List[TeamStatsModel]:
     # Group by (scenario_id, tuple(sorted(player_team)))
     grouped: Dict[tuple, List[BattleRecord]] = defaultdict(list)
     for b in battles:
-        key = (b.scenario_id, tuple(sorted(b.player_team)))
+        key = (b.scenario_id, tuple(b.player_team))
         grouped[key].append(b)
 
     results: List[TeamStatsModel] = []
@@ -155,51 +159,34 @@ def team_stats(battles: List[BattleRecord]) -> List[TeamStatsModel]:
 
 def hp_timeline(battle: BattleRecord) -> HPTimelineModel:
     """Calculates HP per creature and coin balance per tick with event markers."""
-    ticks_count = max(1, battle.ticks_elapsed)
-    points: Dict[int, Dict[str, Any]] = {}
-
-    initial_hps = {cid: 100 for cid in battle.player_team}
-
-    for t in range(1, ticks_count + 1):
-        points[t] = {
-            "tick": t,
-            "coins": 20,
-            "creatures": dict(initial_hps),
-            "hazard_events": [],
-            "ko_events": [],
-            "key_events": [],
-        }
-
-    running_hps = dict(initial_hps)
-    running_coins = 20
-
+    running_hps = dict(battle.metadata.get("initial_hps", {}))
+    # For legacy imports, infer only values present in logs; do not invent 100 HP.
     for ev in battle.events:
-        t = ev.tick
-        if t not in points:
-            continue
-
-        if ev.coin_after > 0 or ev.coin_before > 0:
-            running_coins = ev.coin_after
-        elif ev.coin_change != 0:
-            running_coins += ev.coin_change
-
-        if ev.target in running_hps:
-            running_hps[ev.target] = ev.hp_after
-
-        points[t]["coins"] = running_coins
-        points[t]["creatures"] = dict(running_hps)
-
-        if ev.hazard_hit:
-            points[t]["hazard_events"].append(ev.hazard_hit)
-            points[t]["key_events"].append(f"Hazard: {ev.hazard_hit}")
-        if ev.ko:
-            points[t]["ko_events"].append(ev.target or "Creature")
-            points[t]["key_events"].append(f"KO: {ev.target}")
-        if ev.event_type == "objective":
-            points[t]["key_events"].append("Objective Achieved")
-
-    timeline_points = [HPTimelinePointModel(**points[t]) for t in sorted(points.keys())]
-    return HPTimelineModel(battle_id=battle.battle_id, ticks=timeline_points)
+        if ev.event_type != "decision" and ev.target in battle.player_team and ev.target not in running_hps and ev.hp_before > 0:
+            running_hps[ev.target] = ev.hp_before
+    running_coins = battle.metadata.get("initial_coins")
+    if running_coins is None:
+        running_coins = next((e.coin_before for e in battle.events if e.coin_before or e.coin_change), battle.coins_left)
+    grouped = defaultdict(list)
+    for ev in battle.events:
+        grouped[ev.tick].append(ev)
+    points = []
+    for tick in range(1, max(1, battle.ticks_elapsed) + 1):
+        hazards, kos, keys = [], [], []
+        for ev in grouped[tick]:
+            if ev.coin_before or ev.coin_after or ev.coin_change:
+                running_coins = ev.coin_after
+            if ev.event_type != "decision" and ev.target in battle.player_team and (ev.damage or ev.hp_before or ev.hp_after or ev.ko):
+                running_hps[ev.target] = ev.hp_after
+            if ev.hazard_hit:
+                hazards.append(ev.hazard_hit)
+            if ev.ko:
+                kos.append(ev.target or "Creature")
+            if ev.event_type == "objective":
+                keys.append("Objective Achieved")
+        points.append(HPTimelinePointModel(tick=tick, coins=running_coins,
+                      creatures=dict(running_hps), hazard_events=hazards, ko_events=kos, key_events=keys))
+    return HPTimelineModel(battle_id=battle.battle_id, ticks=points)
 
 
 def position_heatmap(
@@ -223,6 +210,7 @@ def position_heatmap(
     ]
 
     for b in records:
+        seen_kos = set()
         for ev in b.events:
             lane = 0
             tile = 0
@@ -240,8 +228,9 @@ def position_heatmap(
             grid_data[l_idx][t_idx]["time_spent"] += 1
             if ev.damage > 0:
                 grid_data[l_idx][t_idx]["damage"] += ev.damage
-            if ev.ko:
+            if ev.ko and ev.target not in seen_kos:
                 grid_data[l_idx][t_idx]["kos"] += 1
+                seen_kos.add(ev.target)
 
     # Build Pydantic model grid
     grid: List[List[PositionHeatmapCellModel]] = []
@@ -253,6 +242,7 @@ def position_heatmap(
                 lane=l_idx,
                 tile=t_idx,
                 time_spent=grid_data[l_idx][t_idx]["time_spent"],
+                event_count=grid_data[l_idx][t_idx]["time_spent"],
                 kos=grid_data[l_idx][t_idx]["kos"],
                 damage=grid_data[l_idx][t_idx]["damage"],
             )
@@ -314,7 +304,8 @@ def compute_battle_descriptive_stats(battle: BattleRecord) -> Dict[str, Any]:
         "coins_left": summary.coins_left,
         "objective_status": summary.objective_status,
         "summary_sentence": summary.summary_sentence,
-        "creatures_stats": [c.model_dump() for c in c_stats],
+        "creatures_stats": [dict(c.model_dump(), survived=c.survival, hazard_ticks=c.ticks_spent_in_hazard_zones) for c in c_stats],
         "hp_timeline": legacy_timeline,
+        "heatmap_metric": "Event counts and logged damage; not time occupancy",
         "heatmap": legacy_heatmap,
     }

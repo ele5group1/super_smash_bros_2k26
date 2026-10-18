@@ -100,13 +100,14 @@ export interface EventLog {
   pickup?: string | null;
   ko: boolean;
   coin_change: number;
-  event_type: "hazard" | "move" | "status" | "pickup" | "death" | "objective" | "info" | "block" | "synergy" | "boss_phase";
+  event_type: "hazard" | "move" | "status" | "pickup" | "death" | "objective" | "info" | "block" | "decision" | "synergy" | "boss_phase";
 }
 
 export type BattleEvent = EventLog;
 export type ScenarioSummary = Scenario;
 
 export interface BattleRecord {
+  metadata?: { early_heal_spend?: number; prediction?: { win_rate_percent: number; ci_lower: number; ci_upper: number }; terminal_id?: string };
   battle_id: string;
   scenario_id: string;
   seed: number;
@@ -230,6 +231,7 @@ export interface DiagnosticAnalytics {
   turning_points: Array<{
     tick: number;
     category: string;
+    actor?: string;
     title: string;
     description: string;
   }>;
@@ -243,6 +245,9 @@ export interface PredictionResult {
   win_rate: number;
   win_rate_percent: number;
   confidence_interval_percent: number;
+  confidence_interval_95: number;
+  ci_lower: number;
+  ci_upper: number;
   survivor_distribution: number[];
   survivor_distribution_percent: number[];
   avg_coins_left: number;
@@ -254,6 +259,7 @@ export interface PredictionResult {
     uploaded_win_rate_percent?: number;
     gap?: number;
     gap_percent?: number;
+    note?: string;
     interpretation?: string;
     message?: string;
   } | null;
@@ -340,6 +346,9 @@ export const api = {
   },
 
   createBattle: (data: {
+    session_kind?: "visitor" | "preview";
+    early_heal_spend?: number;
+    terminal_id?: string;
     scenario_id: string;
     player_team: string[];
     seed: number;
@@ -395,6 +404,7 @@ export const api = {
     }),
 
   predictPlan: (data: {
+    early_heal_spend?: number;
     scenario_id: string;
     team: string[];
     seed_count: number;
@@ -418,6 +428,8 @@ export const api = {
         early_heal_spend: number;
         win_rate: number;
         win_rate_percent: number;
+        ci_lower: number;
+        ci_upper: number;
         avg_survivors: number;
         avg_coins_left: number;
       }>
@@ -431,6 +443,8 @@ export const api = {
     request<{
       scenario_id: string;
       team: string[];
+      seed_count: number;
+      improvement_percentage_points: number;
       best_spend: number;
       best_win_rate_percent: number;
       explanation: string;
@@ -477,6 +491,12 @@ export const api = {
     return data;
   },
 
+  getEvaluation: (scenarioId?: string) => request<{
+    sample_count: number; brier_score: number | null; note: string;
+    calibration: Array<{ range: string; count: number; predicted: number; observed: number }>;
+    recent_sessions: Array<{ battle_id: string; created_at: string; terminal_id: string | null; outcome: string; spend: number; predicted: number }>;
+  }>(`/analytics/evaluation${scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : ""}`),
+
   // Analytics endpoints
   getBattleSummary: (id: string) => request<any>(`/battles/${id}/analytics/summary`),
   getBattleCreatures: (id: string) => request<any>(`/battles/${id}/analytics/creatures`),
@@ -500,7 +520,7 @@ export const api = {
     const params = new URLSearchParams();
     if (scenarioId) params.append("scenario_id", scenarioId);
     if (source) params.append("source", source);
-    return request<any[]>(`/analytics/loss-causes?${params.toString()}`);
+    return request<{ causes: Array<{ cause: string; count: number; share_percent: number; description: string }> }>(`/analytics/loss-causes?${params.toString()}`).then(report => report.causes);
   },
   getSensitivitySweep: (scenarioId: string, param: string = "enemy_hp_multiplier") =>
     request<any>(`/author/scenarios/${scenarioId}/sensitivity`, {

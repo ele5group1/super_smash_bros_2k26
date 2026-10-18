@@ -79,13 +79,13 @@ def cause_trace(battle: BattleRecord) -> CauseTraceModel:
 
     root_cause = "attrition"
     earliest_tick = battle.ticks_elapsed
-    explanation = f"Defeat occurred at tick {battle.ticks_elapsed} due to sustained attrition across combat rounds."
+    explanation = f"Defeat occurred at tick {battle.ticks_elapsed} with no single cause established by this heuristic."
 
     if lethal_hazards:
         h = lethal_hazards[0]
         root_cause = "hazard_vulnerability"
         earliest_tick = h["tick"]
-        explanation = f"Pivotal loss caused by fatal hazard exposure: {h['target']} was devastated by {h['hazard']} at tick {h['tick']}."
+        explanation = f"Observed hazard exposure may have contributed: {h['target']} was hit by {h['hazard']} at tick {h['tick']}."
         turning_points.append(
             CauseTraceEventModel(
                 tick=h["tick"],
@@ -100,7 +100,7 @@ def cause_trace(battle: BattleRecord) -> CauseTraceModel:
         s = heavy_strikes[0]
         root_cause = "burst_damage"
         earliest_tick = s["tick"]
-        explanation = f"Critical loss triggered by enemy damage burst: {s['actor']} landed a massive {s['damage']} damage hit on {s['target']} at tick {s['tick']}."
+        explanation = f"Observed heavy enemy strike may have contributed: {s['actor']} landed a massive {s['damage']} damage hit on {s['target']} at tick {s['tick']}."
         turning_points.append(
             CauseTraceEventModel(
                 tick=s["tick"],
@@ -197,16 +197,17 @@ def loss_causes(
 
     cause_counts = {
         "hazard_damage": 0,
-        "healing_spent_early": 0,
+        "early_healing_observed": 0,
         "coins_never_used": 0,
         "single_hazard_wipe": 0,
-        "type_disadvantage": 0,
+        "heavy_enemy_strikes": 0,
+        "other_or_objective_failure": 0,
     }
 
     for b in loss_battles:
         player_set = set(b.player_team)
         has_hazard = False
-        hazard_kos = 0
+        hazard_kos_by_tick = {}
         has_early_heal = False
         has_type_disadvantage = False
 
@@ -215,31 +216,32 @@ def loss_causes(
                 if ev.hazard_hit:
                     has_hazard = True
                     if ev.ko:
-                        hazard_kos += 1
+                        hazard_kos_by_tick[ev.tick] = hazard_kos_by_tick.get(ev.tick, 0) + 1
                 if "Early Heal" in ev.action or (ev.status_change == "healed" and ev.tick <= 5):
                     has_early_heal = True
                 if ev.damage >= 35:
                     has_type_disadvantage = True
 
-        if hazard_kos >= 2:
+        if max(hazard_kos_by_tick.values(), default=0) >= 2:
             cause_counts["single_hazard_wipe"] += 1
         elif has_hazard:
             cause_counts["hazard_damage"] += 1
         elif has_type_disadvantage:
-            cause_counts["type_disadvantage"] += 1
+            cause_counts["heavy_enemy_strikes"] += 1
         elif b.coins_left >= 10:
             cause_counts["coins_never_used"] += 1
         elif has_early_heal:
-            cause_counts["healing_spent_early"] += 1
+            cause_counts["early_healing_observed"] += 1
         else:
-            cause_counts["hazard_damage"] += 1
+            cause_counts["other_or_objective_failure"] += 1
 
     descriptions = {
+        "other_or_objective_failure": "No listed factor established; review the objective and event log.",
         "hazard_damage": "Direct environmental and hazard zone damage compromised HP pools.",
         "single_hazard_wipe": "Catastrophic hazard event incapacitated multiple allies in one tick.",
-        "type_disadvantage": "Elemental weaknesses exploited by heavy opposing damage strikes.",
+        "heavy_enemy_strikes": "A hit of at least 35 damage was observed; this alone does not establish a type disadvantage.",
         "coins_never_used": "Squad was defeated while retaining significant unspent coin reserves (>= 10 coins).",
-        "healing_spent_early": "Coin investment in early healing depleted reserves before decisive end-game turns.",
+        "early_healing_observed": "Healing occurred within the first five ticks; it is not established as the cause of defeat.",
     }
 
     shares: List[LossCauseShareModel] = []
@@ -333,6 +335,7 @@ def counterfactual(
         seed=battle.seed,
         personality=battle.personality,
         counterfactual=change,
+        early_heal_spend=battle.metadata.get("early_heal_spend", 0),
     )
     new_battle = engine.run()
 
@@ -386,6 +389,7 @@ def counterfactual(
         survivors_diff=new_battle.survivors - battle.survivors,
         coins_diff=new_battle.coins_left - battle.coins_left,
         cause_trace_diff=cause_diff,
+        new_battle=new_battle,
     )
 
 
@@ -401,6 +405,7 @@ def trace_defeat_causes(battle: BattleRecord) -> Dict[str, Any]:
             {
                 "tick": ev.tick,
                 "category": ev.category,
+                "actor": ev.target,
                 "title": ev.description.split(":")[0] if ":" in ev.description else ev.category.title(),
                 "description": ev.description,
             }

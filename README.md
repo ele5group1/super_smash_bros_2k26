@@ -1,81 +1,42 @@
-# Super Mario x Pokémon: Scenario Battle Arena
+# Mario × Pokémon: Halloween Arcade
 
-A full-stack, scenario-driven battle simulator pairing Super Mario and Pokémon champions with arcade-style environmental hazards, deterministic simulation engine, predictive/prescriptive analytics dashboards, and data upload pipelines (JSON, CSV, ZIP).
+A simulation-based strategy arcade with descriptive reports, diagnostic counterfactuals, Monte Carlo forecasts, and affordable potion recommendations that players can apply to actual rounds.
 
----
+Start with **Luigi’s Haunted Pipe Escape**. Draft an ordered squad, compare plans, play, inspect the result, and revise your strategy. The shared control center tracks rounds across terminals and evaluates saved predictions using Brier score and calibration bins.
 
-## Features
+## Run
 
-- **Iconic Roster**:
-  - **Heroes**: Mario, Luigi, Pikachu, Charizard, Blastoise, Venusaur, Yoshi, Gengar, Onix, Raichu
-  - **Enemies & Bosses**: King Bowser, Mewtwo, Koopa Troopa, Goomba, Piranha Plant, Electabuzz
-  - **Signature Moves**: Fireball, Thunderbolt, Flamethrower, Hydro Pump, Solar Beam, Super Jump Punch, Bowser Bomb, Psystrike, etc.
-- **Themed Arenas & Scenarios**:
-  - **Mushroom Kingdom: Pipe Ambush**: World 1-1 warp pipes, question mark blocks, and flagpole exit.
-  - **Bowser's Castle: Lava Siege**: Volcanic keep with crushing Thwomps and fiery lava surges.
-  - **Pokémon Stadium: Championship Cup**: Bright stadium spotlights and electric surge hazards.
-- **Deterministic Tick Simulation**:
-  - Seeded PRNG engine for 100% reproducible outcomes.
-  - Dynamic AI personalities (`aggressive`, `cautious`, `opportunistic`).
-- **Full Analytics Suite**:
-  - **Descriptive**: Post-battle summaries, per-creature damage/KO/hazard statistics, tick HP timelines, threat heatmaps.
-  - **Diagnostic**: Defeat root-cause backward tracing and counterfactual rerun engine.
-  - **Predictive**: Monte Carlo simulation batches with 95% confidence intervals and calibration against uploaded data.
-  - **Prescriptive**: Ranked coin spending allocations and automated scenario balance auditing.
-- **Data Ingestion & Export**:
-  - Upload custom rosters, scenarios, and battle logs in JSON, RFC 4180 CSV, or multi-file ZIP bundles.
-  - Formula-injection prevention and automated battle replay verification.
+Python 3.11+ and Node.js 18+ are required. In PowerShell, from this repository:
 
----
-
-## Quick Start
-
-### 1. Requirements
-- Python 3.10+
-- Node.js 18+ & npm
-
-### 2. Run Locally (One Command)
-```bash
-cd battle-sim/backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```powershell
+cd battle-sim/frontend
+npm install
+npm run build
+cd ../backend
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-Open **`http://localhost:8000`** in any web browser!
 
-### 3. Development Mode
-```bash
+Open `http://localhost:8000`. Other booth devices use the server laptop’s LAN IPv4 address instead of localhost. Open `/analytics` on the control-center device and `/scenarios/haunted_pipes` on the two visitor devices.
+
+## Documentation and verification
+
+- [Arcade operation guide](docs/arcade_operation_guide.md): rules, Chapters 1–6, analytics methods, three-device setup, recovery, submission evidence, and limitations.
+- [Synthetic prediction validation](docs/predictive_validation.json): separate forecasting and held-out seeds; not visitor evidence.
+- [Original audit](docs/assignment_readiness_audit_2026-10-18.md): findings before these changes.
+
+```powershell
 cd battle-sim
-
-# Start backend (Port 8000)
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
-
-# Start frontend dev server (Port 5173, with API proxy)
+python -m pytest backend/tests -q
 cd frontend
-npm run dev
+npm test
+npx playwright test --config playwright.audit.config.ts
 ```
 
----
+Browser verification uses an isolated database and port 8011. It covers the repaired flow on desktop and mobile viewports; physical three-device operation still requires a booth rehearsal.
 
-## Test Suites
+## Data and design
 
-```bash
-cd battle-sim
+FastAPI + SQLite, React + TypeScript, and a seeded Python simulation engine. Each played round retains its ordered squad, starting state, scenario/creature snapshots, potion budget, terminal, pre-battle forecast, outcome, and event log. JSON export preserves the new metadata. Home-page previews are excluded from ordinary session lists and prediction evaluation.
 
-# Backend tests (17 passed)
-python -m pytest backend/tests -v
-
-# Frontend unit tests (4 passed)
-cd frontend && npm test
-
-# Playwright E2E smoke tests (Desktop Chrome + Mobile 390px Safari)
-npm run test:e2e
-```
-
----
-
-## Repository Structure
-
-- `battle-sim/backend/`: FastAPI backend, tick engine, analytics, SQLite persistence, and upload parsers.
-- `battle-sim/frontend/`: React 18, Vite, TypeScript SPA with interactive SVG arena and analytics dashboards.
-- `battle-sim/scenarios/`: Built-in JSON scenario configurations.
-- `battle-sim/samples/`: Ready-to-upload sample datasets (CSV, JSON, ZIP).
-- `docs/`: Design and architectural documentation.
+The display roster includes Mario, Luigi, Pikachu, Charizard, Blastoise, Venusaur, Yoshi, Raichu, Onix, and Graveler. Legacy creature IDs are retained for compatibility. Elemental classes, moves, and portraits are simplified; the simulator does not implement the full official game rules. Advice is pre-battle only.

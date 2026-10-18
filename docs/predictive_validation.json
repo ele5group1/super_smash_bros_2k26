@@ -1,0 +1,173 @@
+{
+  "data_source": "synthetic engine validation; not visitor evidence",
+  "scenario": "haunted_pipes",
+  "forecast_seed_start": 50000,
+  "evaluation_seed_start": 90000,
+  "method": "Select plans on seeds 3000\u20133099; estimate probabilities on separate seeds; evaluate all plans on matched held-out seeds.",
+  "limitations": "Tests consistency within this simulator, not real-world validity. Three fixed squads; more visitor data is needed. Intervals measure Monte Carlo uncertainty.",
+  "mean_brier_score": 0.08003333333333335,
+  "results": [
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad"
+      ],
+      "spend": 0,
+      "recommended_spend": 0,
+      "predicted": 0.0,
+      "observed": 0.005,
+      "brier_score": 0.005,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        0.0,
+        1.9
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad"
+      ],
+      "spend": 5,
+      "recommended_spend": 0,
+      "predicted": 0.0,
+      "observed": 0.005,
+      "brier_score": 0.005,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        0.0,
+        1.9
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad"
+      ],
+      "spend": 10,
+      "recommended_spend": 0,
+      "predicted": 0.0,
+      "observed": 0.0,
+      "brier_score": 0.0,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        0.0,
+        1.9
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad",
+        "moss_shroom"
+      ],
+      "spend": 0,
+      "recommended_spend": 0,
+      "predicted": 0.445,
+      "observed": 0.38,
+      "brier_score": 0.23982499999999998,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        37.6,
+        51.4
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad",
+        "moss_shroom"
+      ],
+      "spend": 5,
+      "recommended_spend": 0,
+      "predicted": 0.425,
+      "observed": 0.31,
+      "brier_score": 0.227125,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        35.6,
+        49.4
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad",
+        "moss_shroom"
+      ],
+      "spend": 10,
+      "recommended_spend": 0,
+      "predicted": 0.405,
+      "observed": 0.365,
+      "brier_score": 0.23337500000000003,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        33.7,
+        47.3
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad",
+        "moss_shroom",
+        "volt_hedgehog"
+      ],
+      "spend": 0,
+      "recommended_spend": 0,
+      "predicted": 0.995,
+      "observed": 0.995,
+      "brier_score": 0.004975,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        97.2,
+        99.9
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad",
+        "moss_shroom",
+        "volt_hedgehog"
+      ],
+      "spend": 5,
+      "recommended_spend": 0,
+      "predicted": 1.0,
+      "observed": 0.995,
+      "brier_score": 0.005,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        98.1,
+        100.0
+      ]
+    },
+    {
+      "team": [
+        "ember_fox",
+        "bubble_toad",
+        "moss_shroom",
+        "volt_hedgehog"
+      ],
+      "spend": 10,
+      "recommended_spend": 0,
+      "predicted": 1.0,
+      "observed": 1.0,
+      "brier_score": 0.0,
+      "forecast_trials": 200,
+      "evaluation_trials": 200,
+      "forecast_interval_percent": [
+        98.1,
+        100.0
+      ]
+    }
+  ]
+}

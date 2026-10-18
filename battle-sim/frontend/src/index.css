@@ -1079,3 +1079,8 @@ h3, .text-h3 {
 .timeline-tick-seg.has-pickup {
   background-color: var(--color-warning);
 }
+
+.halloween-banner { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; padding:1.25rem; margin:1rem 0; border:1px solid #fb923c; border-radius:16px; background:linear-gradient(120deg,#251332,#422006); color:#fff7ed; }
+.halloween-banner > span { font-size:2.5rem; }
+.halloween-banner > div { flex:1; min-width:180px; }
+.halloween-banner h2 { color:#fed7aa; }

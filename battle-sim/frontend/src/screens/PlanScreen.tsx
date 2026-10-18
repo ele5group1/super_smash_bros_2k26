@@ -1,375 +1,84 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { api, Scenario, UploadRecord } from "../api";
-import { Card, CardHeader, CardTitle, CardBody } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-import { Table, Column } from "../components/ui/Table";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api, Scenario, Creature } from "../api";
+import { Card, CardBody } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
 
-interface StrategyOption {
-  id: string;
-  name: string;
-  teamSize: number;
-  hasHealer: boolean;
-  early_heal_spend: number;
-  win_rate: number;
-  ci_low: number;
-  ci_high: number;
-  avg_survivors: number;
-  avg_coins_left: number;
-}
-
+type Comparison = Awaited<ReturnType<typeof api.comparePlan>>[number];
+type Recommendation = Awaited<ReturnType<typeof api.recommendPlan>>;
 export const PlanScreen: React.FC = () => {
+  const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>("pipe_ambush");
-  const [uploads, setUploads] = useState<UploadRecord[]>([]);
-  const [selectedUploadId, setSelectedUploadId] = useState<string>("");
-
-  // Filters
-  const [filterTeamSize, setFilterTeamSize] = useState<number | null>(null);
-  const [filterHealer, setFilterHealer] = useState<boolean | null>(null);
-  const [dataSource, setDataSource] = useState<"all" | "simulated" | "uploaded">("all");
-
-  // Sorting
-  const [sortColumn, setSortColumn] = useState<string>("win_rate");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-
-  const [compareResults, setCompareResults] = useState<StrategyOption[]>([]);
-  const [recommendation, setRecommendation] = useState<any | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const defaultTeam = ["ember_fox", "bubble_toad", "moss_shroom", "volt_hedgehog"];
-
+  const [creatures, setCreatures] = useState<Creature[]>([]);
+  const [scenarioId, setScenarioId] = useState("");
+  const [team, setTeam] = useState<string[]>([]);
+  const [rows, setRows] = useState<Comparison[]>([]);
+  const [advice, setAdvice] = useState<Recommendation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   useEffect(() => {
-    async function loadInitial() {
-      try {
-        const [scenList, upList] = await Promise.all([
-          api.getScenarios(),
-          api.getUploads(),
-        ]);
-        setScenarios(scenList);
-        setUploads(upList.filter((u) => u.kind === "battles" && u.status === "valid"));
-        if (scenList.length > 0) {
-          setSelectedScenarioId(scenList[0].id);
-        }
-      } catch (e) {
-        console.error("Plan screen load error:", e);
-      }
-    }
-    loadInitial();
+    let active = true;
+    Promise.all([api.getScenarios(), api.getCreatures()]).then(([s,c]) => {
+      if (!active) return;
+      setScenarios(s); setCreatures(c);
+      setScenarioId(s.find(x => x.id === localStorage.getItem("last_selected_scenario"))?.id ?? s[0]?.id ?? "");
+      let draft: string[] = [];
+      try { const value = JSON.parse(localStorage.getItem("last_selected_team") || "[]"); if (Array.isArray(value)) draft = value; } catch { /* defaults */ }
+      const valid = [...new Set(draft)].filter(id => c.some(x => x.id === id)).slice(0,4);
+      setTeam(valid.length ? valid : c.slice(0,4).map(x => x.id));
+    }).catch(e => { if (active) { setError(e.message); setLoading(false); } });
+    return () => { active = false; };
   }, []);
-
-  const runAnalysis = async () => {
-    if (!selectedScenarioId) return;
-    setIsLoading(true);
-    try {
-      // 1. Live prediction
-      await api.predictPlan({
-        scenario_id: selectedScenarioId,
-        team: defaultTeam,
-        seed_count: 100,
-        calibrate_with_upload_id: selectedUploadId || undefined,
-      });
-
-      // 2. Comparison strategies
-      const comp = await api.comparePlan({
-        scenario_id: selectedScenarioId,
-        seed_count: 60,
-        options: [
-          { name: "Max Offense Rush (0 Coins)", team: ["ember_fox", "volt_hedgehog"], early_heal_spend: 0 },
-          { name: "Balanced 3-Creature (5 Coins)", team: ["ember_fox", "bubble_toad", "moss_shroom"], early_heal_spend: 5 },
-          { name: "Full 4-Squad with Healer (10 Coins)", team: defaultTeam, early_heal_spend: 10 },
-          { name: "Heavily Fortified Defense (20 Coins)", team: ["crag_golem", "bubble_toad", "moss_shroom", "pebble_armadillo"], early_heal_spend: 20 },
-        ],
-      });
-
-      const formatted: StrategyOption[] = comp.map((opt: any, idx: number) => {
-        const ci_margin = 0.06;
-        return {
-          id: `strat-${idx}`,
-          name: opt.name,
-          teamSize: idx === 0 ? 2 : idx === 1 ? 3 : 4,
-          hasHealer: idx >= 1,
-          early_heal_spend: opt.early_heal_spend,
-          win_rate: opt.win_rate,
-          ci_low: Math.max(0, opt.win_rate - ci_margin),
-          ci_high: Math.min(1, opt.win_rate + ci_margin),
-          avg_survivors: opt.avg_survivors,
-          avg_coins_left: opt.avg_coins_left,
-        };
-      });
-      setCompareResults(formatted);
-
-      // 3. Recommendation
-      const rec = await api.recommendPlan({
-        scenario_id: selectedScenarioId,
-        team: defaultTeam,
-        current_coins: 20,
-      });
-      setRecommendation(rec);
-    } catch (e) {
-      console.error("Plan execution error:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (selectedScenarioId) {
-      runAnalysis();
-    }
-  }, [selectedScenarioId, selectedUploadId]);
-
-  // Filtered and sorted data
-  const filteredData = useMemo(() => {
-    return compareResults
-      .filter((item) => {
-        if (filterTeamSize !== null && item.teamSize !== filterTeamSize) return false;
-        if (filterHealer !== null && item.hasHealer !== filterHealer) return false;
-        if (dataSource === "uploaded" && !selectedUploadId) return false;
-        return true;
-      })
-      .sort((a: any, b: any) => {
-        const valA = a[sortColumn];
-        const valB = b[sortColumn];
-        if (typeof valA === "number" && typeof valB === "number") {
-          return sortDirection === "asc" ? valA - valB : valB - valA;
-        }
-        return sortDirection === "asc"
-          ? String(valA).localeCompare(String(valB))
-          : String(valB).localeCompare(String(valA));
-      });
-  }, [compareResults, filterTeamSize, filterHealer, dataSource, selectedUploadId, sortColumn, sortDirection]);
-
-  const handleSort = (columnKey: string) => {
-    if (sortColumn === columnKey) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(columnKey);
-      setSortDirection("desc");
-    }
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario || !team.length) return;
+    let active = true;
+    setLoading(true); setError(""); setAdvice(null); setRows([]);
+    const budget = scenario.starting_resources.coins;
+    const options = [0,5,10].filter(spend => spend <= budget).map(spend => ({ name: spend ? `${spend*4} HP emergency potion` : "Keep coins for combat moves", team, early_heal_spend: spend }));
+    Promise.all([
+      api.comparePlan({ scenario_id: scenarioId, seed_count: 100, options }),
+      api.recommendPlan({ scenario_id: scenarioId, team, current_coins: budget }),
+    ]).then(([r,a]) => { if (active) { setRows(r); setAdvice(a); } })
+      .catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [scenarioId, team, scenarios]);
+  const apply = (spend: number) => {
+    localStorage.setItem("last_selected_team", JSON.stringify(team));
+    localStorage.setItem("last_selected_scenario", scenarioId);
+    localStorage.setItem("last_selected_spend", String(spend));
+    navigate(`/scenarios/${scenarioId}`);
   };
-
-  const columns: Column<StrategyOption>[] = [
-    {
-      key: "name",
-      header: "Strategy Configuration",
-      sortable: true,
-      render: (row) => (
-        <div>
-          <div style={{ fontWeight: "bold" }}>{row.name}</div>
-          <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "2px" }}>
-            <Badge variant="neutral" size="sm">{row.teamSize} Creatures</Badge>
-            {row.hasHealer && <Badge variant="grass" size="sm">Healer Active</Badge>}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "early_heal_spend",
-      header: "Early Spend",
-      sortable: true,
-      width: "120px",
-      render: (row) => <span>🪙 {row.early_heal_spend} coins</span>,
-    },
-    {
-      key: "win_rate",
-      header: "Win Rate & 95% Confidence Interval",
-      sortable: true,
-      width: "280px",
-      render: (row) => {
-        const pct = Math.round(row.win_rate * 100);
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-              <span style={{ fontWeight: "bold" }}>{pct}%</span>
-              <span className="text-muted">
-                CI: [{Math.round(row.ci_low * 100)}% - {Math.round(row.ci_high * 100)}%]
-              </span>
-            </div>
-            <div className="winrate-bar-container" style={{ height: "14px" }}>
-              <div className="winrate-bar-fill" style={{ width: `${row.win_rate * 100}%` }} />
-              <div
-                className="winrate-ci-shade"
-                style={{
-                  left: `${row.ci_low * 100}%`,
-                  width: `${(row.ci_high - row.ci_low) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "avg_survivors",
-      header: "Avg Survivors",
-      sortable: true,
-      width: "130px",
-      render: (row) => <span>{row.avg_survivors} alive</span>,
-    },
-    {
-      key: "avg_coins_left",
-      header: "Reserve Kept",
-      sortable: true,
-      width: "120px",
-      render: (row) => <span>🪙 {row.avg_coins_left}</span>,
-    },
-  ];
-
-  return (
-    <div className="page-container">
-      {/* Screen Title */}
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <h1 className="text-h1">Matchup Odds & Strategy Calc</h1>
-        <p className="text-muted" style={{ marginTop: "var(--space-1)" }}>
-          Simulate battle odds across different coin investments and team lineups before locking into combat.
-        </p>
-      </div>
-
-      {/* 1. Recommendation card at top with one-sentence explanation and the numbers behind it */}
-      {recommendation && (
-        <Card variant="accent" style={{ marginBottom: "var(--space-6)" }}>
-          <CardBody>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-4)" }}>
-              <div style={{ fontSize: "2rem" }}>💡</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-1)" }}>
-                  <Badge variant="warning" size="sm">RECOMMENDED PLAY</Badge>
-                  <span className="text-small text-muted">Tested across 100 simulation runs</span>
-                </div>
-                <h3 className="text-h3" style={{ marginBottom: "var(--space-2)" }}>
-                  {recommendation.explanation}
-                </h3>
-                <div style={{ display: "flex", gap: "var(--space-6)", fontSize: "var(--font-size-small)" }}>
-                  <div>Target Scenario: <strong>{selectedScenarioId}</strong></div>
-                  <div>Recommended Spend: <strong>🪙 {recommendation.recommended_coins_to_spend ?? 5} coins</strong></div>
-                  <div>Projected Win Boost: <strong style={{ color: "var(--color-success)" }}>+14%</strong></div>
-                </div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
-      {/* 2. Filter chips section */}
-      <Card style={{ marginBottom: "var(--space-6)" }}>
-        <CardBody>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {/* Scenario Chips */}
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              <span className="text-small text-muted" style={{ minWidth: "90px" }}>Scenario:</span>
-              {scenarios.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${selectedScenarioId === s.id ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                  onClick={() => setSelectedScenarioId(s.id)}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Team Size Chips */}
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              <span className="text-small text-muted" style={{ minWidth: "90px" }}>Team Size:</span>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${filterTeamSize === null ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                onClick={() => setFilterTeamSize(null)}
-              >
-                All Sizes
-              </button>
-              {[2, 3, 4].map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${filterTeamSize === size ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                  onClick={() => setFilterTeamSize(size)}
-                >
-                  {size} Creatures
-                </button>
-              ))}
-            </div>
-
-            {/* Healer On/Off Chips */}
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              <span className="text-small text-muted" style={{ minWidth: "90px" }}>Healer:</span>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${filterHealer === null ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                onClick={() => setFilterHealer(null)}
-              >
-                Any
-              </button>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${filterHealer === true ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                onClick={() => setFilterHealer(true)}
-              >
-                Healer Active
-              </button>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${filterHealer === false ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                onClick={() => setFilterHealer(false)}
-              >
-                No Healer
-              </button>
-            </div>
-
-            {/* Data Source Chips */}
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              <span className="text-small text-muted" style={{ minWidth: "90px" }}>Data Source:</span>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${dataSource === "all" ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                onClick={() => { setDataSource("all"); setSelectedUploadId(""); }}
-              >
-                All Sources
-              </button>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${dataSource === "simulated" ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                onClick={() => { setDataSource("simulated"); setSelectedUploadId(""); }}
-              >
-                Pure Simulation
-              </button>
-              {uploads.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${selectedUploadId === u.id ? "ui-btn-primary" : "ui-btn-secondary"}`}
-                  onClick={() => { setDataSource("uploaded"); setSelectedUploadId(u.id); }}
-                >
-                  {u.filename} ({u.row_count} rows)
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* 3. Sortable Comparison Table with win-rate bars & confidence intervals */}
-      <Card>
-        <CardHeader>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-            <CardTitle>Strategy Matrix Comparison</CardTitle>
-            <span className="text-small text-muted">{filteredData.length} strategies evaluated</span>
-          </div>
-        </CardHeader>
-        <CardBody style={{ padding: 0 }}>
-          <Table
-            columns={columns}
-            data={filteredData}
-            keyField="id"
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            isLoading={isLoading}
-            caption="Sorted Monte Carlo outcome projections with 95% confidence intervals"
-          />
-        </CardBody>
-      </Card>
-    </div>
-  );
+  return <div className="page-container">
+    <h1 className="text-h1">Strategy Lab</h1>
+    <p>Compare affordable plans, apply one, then play a round and inspect the outcome.</p>
+    <Card><CardBody>
+      <label>Scenario <select aria-label="Strategy scenario" value={scenarioId} onChange={e => setScenarioId(e.target.value)}>
+        {scenarios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select></label>
+      <p>Squad: {team.map(id => creatures.find(c => c.id === id)?.name || id).join(", ")}</p>
+      <Button variant="secondary" onClick={() => apply(0)}>Change squad</Button>
+      <p>A potion is purchased before combat and activates once when a living ally reaches half HP. Unused potions are not refunded. Spending leaves fewer coins for combat moves.</p>
+    </CardBody></Card>
+    {error && <p role="alert">Analysis failed: {error}</p>}
+    {loading && <p role="status">Comparing plans...</p>}
+    {advice && <Card><CardBody>
+      <h2>Recommended plan</h2><p>{advice.explanation}</p>
+      <p>{advice.seed_count} trials per option · Spend: {advice.best_spend} coins · Estimated change versus no potion: {advice.improvement_percentage_points.toFixed(1)} percentage points.</p>
+      <p>The recommendation uses separate seeds from the comparison below, so estimates can differ.</p>
+      <Button onClick={() => apply(advice.best_spend)}>Apply recommendation</Button>
+    </CardBody></Card>}
+    {!!rows.length && <Card><CardBody>
+      <h2>Strategy comparison — 100 trials per option</h2>
+      <div style={{ overflowX: "auto" }}><table className="ui-table">
+        <thead><tr><th>Plan</th><th>Cost</th><th>Win estimate</th><th>95% interval</th><th>Survivors</th><th>Coins left</th><th>Play</th></tr></thead>
+        <tbody>{rows.map(r => <tr key={r.early_heal_spend}>
+          <td>{r.name}</td><td>{r.early_heal_spend}</td><td>{r.win_rate_percent}%</td>
+          <td>{r.ci_lower}%–{r.ci_upper}%</td><td>{r.avg_survivors}</td><td>{r.avg_coins_left}</td>
+          <td><Button size="sm" onClick={() => apply(r.early_heal_spend)}>Use plan</Button></td>
+        </tr>)}</tbody>
+      </table></div>
+      <p>Intervals describe simulation sampling uncertainty. Compare saved predictions with actual outcomes on the shared analytics screen.</p>
+    </CardBody></Card>}
+  </div>;
 };

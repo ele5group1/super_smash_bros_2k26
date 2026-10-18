@@ -170,6 +170,15 @@ def get_creatures(source: Optional[str] = Query(None, description="Filter: 'buil
     return db.get_all_creatures(source_filter=source)
 
 
+def validate_plan(scenario, team, spend=0):
+    if not 0 <= spend <= scenario.starting_coins:
+        raise HTTPException(status_code=422, detail="Potion spending exceeds available coins")
+    if not 1 <= len(team) <= 4 or len(set(team)) != len(team):
+        raise HTTPException(status_code=422, detail="Choose one to four distinct creatures")
+    if any(db.get_creature(cid) is None for cid in team):
+        raise HTTPException(status_code=400, detail="Unknown creature in squad")
+
+
 # --- Battles ---
 @app.post("/api/battles")
 def create_and_run_battle(req: BattleCreateRequest):
@@ -177,6 +186,7 @@ def create_and_run_battle(req: BattleCreateRequest):
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
 
+    validate_plan(scenario, req.player_team, req.early_heal_spend)
     player_creatures = []
     for cid in req.player_team:
         c = db.get_creature(cid)
@@ -199,9 +209,17 @@ def create_and_run_battle(req: BattleCreateRequest):
         seed=req.seed,
         personality=req.personality,
         battle_id=battle_id,
+        early_heal_spend=req.early_heal_spend,
     )
+    # Separate seed range prevents the actual battle being included in its forecast.
+    forecast_base = 100000 if not 100000 <= req.seed < 100100 else 200000
+    forecast = predict_win_rate(scenario, player_creatures, seed_count=100, base_seed=forecast_base,
+                                enemy_creatures=enemy_creatures, early_heal_spend=req.early_heal_spend,
+                                personality=req.personality)
     record = engine.run()
-    db.save_battle(record, upload_id=None, source="simulated")
+    record.metadata.update({"visitor_session": req.session_kind == "visitor", "terminal_id": req.terminal_id,
+                            "prediction": forecast.model_dump(mode="json")})
+    db.save_battle(record, upload_id=None, source="simulated" if req.session_kind == "visitor" else "preview")
 
     return {
         "battle_id": record.battle_id,
@@ -313,6 +331,11 @@ def rerun_battle_counterfactual(battle_id: str, req: CounterfactualRequest):
     player_creatures: List[Creature] = [c for cid in battle.player_team if (c := db.get_creature(cid)) is not None]
     enemy_creatures: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
 
+    if battle.metadata.get("scenario"):
+        scenario = Scenario(**battle.metadata["scenario"])
+        player_creatures = [Creature(**c) for c in battle.metadata["players"]]
+        enemy_creatures = [Creature(**c) for c in battle.metadata["enemies"]]
+
     result = counterfactual(
         battle=battle,
         change=req,
@@ -321,6 +344,28 @@ def rerun_battle_counterfactual(battle_id: str, req: CounterfactualRequest):
         enemy_creatures=enemy_creatures,
     )
     return result
+
+
+@app.get("/api/analytics/evaluation")
+def prediction_evaluation(scenario_id: Optional[str] = None):
+    records = [b for b in db.get_battles(scenario_id=scenario_id)
+               if b.source == "simulated" and b.metadata.get("visitor_session") and b.metadata.get("prediction")]
+    pairs = [(b.metadata["prediction"]["win_rate"], int(b.outcome == "win")) for b in records]
+    bins = []
+    for low in range(0, 100, 20):
+        group = [(p, y) for p, y in pairs if low / 100 <= p and (p < (low+20)/100 or low == 80)]
+        if group:
+            bins.append({"range": f"{low}–{low+20}%", "count": len(group),
+                         "predicted": sum(p for p,y in group)/len(group),
+                         "observed": sum(y for p,y in group)/len(group)})
+    return {"sample_count": len(pairs),
+            "brier_score": sum((p-y)**2 for p,y in pairs)/len(pairs) if pairs else None,
+            "calibration": bins,
+            "note": "Independent battle seeds; repeated configurations and player choices may be correlated. Lower Brier score is better (0 is perfect).",
+            "recent_sessions": [{"battle_id": b.battle_id, "created_at": b.created_at,
+                                 "terminal_id": b.metadata.get("terminal_id"), "outcome": b.outcome,
+                                 "spend": b.metadata.get("early_heal_spend", 0),
+                                 "predicted": b.metadata["prediction"]["win_rate"]} for b in records[:20]]}
 
 
 @app.get("/api/analytics/team-stats", response_model=List[TeamStatsModel])
@@ -362,6 +407,7 @@ def predict_plan_outcomes(
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
 
+    validate_plan(scenario, req.team, req.early_heal_spend)
     player_creatures = []
     for cid in req.team:
         c = db.get_creature(cid)
@@ -402,6 +448,7 @@ def predict_plan_outcomes(
                 calibrate_with_battles=calibrate_battles,
                 include_mismatched=include_mismatched,
                 mismatched_battle_ids=mismatched_ids,
+                early_heal_spend=req.early_heal_spend,
             )
             set_job_progress(job_id, 1.0, status="completed", result=res.model_dump())
 
@@ -417,6 +464,7 @@ def predict_plan_outcomes(
         calibrate_with_battles=calibrate_battles,
         include_mismatched=include_mismatched,
         mismatched_battle_ids=mismatched_ids,
+        early_heal_spend=req.early_heal_spend,
     )
     return pred_res
 
@@ -431,6 +479,8 @@ def compare_plan_alternatives(
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
 
+    for option in req.options:
+        validate_plan(scenario, option.team, option.early_heal_spend)
     all_c = {c.id: c for c in db.get_all_creatures()}
     enemy_c: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
     default_team: List[Creature] = [c for cid in scenario.enemy_team if (c := db.get_creature(cid)) is not None]
@@ -472,6 +522,9 @@ def recommend_plan_actions(req: PlanRecommendRequest):
     scenario = db.get_scenario(req.scenario_id)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
+    validate_plan(scenario, req.team)
+    if req.creature_hps or req.current_coins != scenario.starting_coins:
+        raise HTTPException(status_code=422, detail="Pre-battle advice requires scenario starting coins and full HP")
     all_c = {c.id: c for c in db.get_all_creatures()}
     state = {
         "player_team": req.team,
@@ -627,14 +680,14 @@ def auto_tune_scenario_balance_endpoint(scenario_id: str, req: AutoTuneRequest):
 # --- Heroes Directory Endpoint ---
 
 HERO_LORE = {
-    "ember_fox": {"role": "Burst Striker", "description": "Agile flame fox capable of blazing burst damage and personal flame shielding."},
-    "flame_salamander": {"role": "Fire Bruiser", "description": "Durable amphibious salamander wielding potent flame breath and high baseline attack."},
+    "ember_fox": {"role": "Burst Striker", "description": "Mario uses fire attacks and shields to lead the Halloween rescue."},
+    "flame_salamander": {"role": "Fire Bruiser", "description": "Charizard brings flame attacks and high baseline attack to the squad."},
     "bubble_toad": {"role": "Tactical Defender", "description": "Support creature specializing in bubble barriers and tide disruption."},
     "stream_turtle": {"role": "Tank & Sponge", "description": "High-HP aquatic defender built to absorb enemy assaults and secure lane control."},
-    "moss_shroom": {"role": "Healer & Sustain", "description": "Vital team supporter wielding healing spores and sustained petal strikes."},
-    "bramble_hound": {"role": "Speed Skirmisher", "description": "Fast-moving canine capable of flanking enemy lines and applying persistent pressure."},
+    "moss_shroom": {"role": "Healer & Sustain", "description": "Luigi supports the rescue with the arena grass healing and shielding moves."},
+    "bramble_hound": {"role": "Speed Skirmisher", "description": "Venusaur applies grass attacks and sustained pressure in this simplified arena."},
     "volt_hedgehog": {"role": "Speed Blitzer", "description": "High-speed electric striker that outpaces opponents and applies tactical stuns."},
-    "spark_finch": {"role": "Swift Scout", "description": "Rapid aerial scout with top-tier initiative for seizing tempo early in battle."},
+    "spark_finch": {"role": "Swift Scout", "description": "Raichu uses electric attacks and fast initiative to seize the opening."},
     "crag_golem": {"role": "Juggernaut", "description": "Massive rocky titan with unparalleled HP and devastating boulder slams."},
     "pebble_armadillo": {"role": "Armor Vanguard", "description": "Resilient frontliner boasting rock armor to withstand heavy hazard zones."},
 }

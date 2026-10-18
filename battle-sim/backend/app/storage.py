@@ -3,6 +3,7 @@
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from .engine.models import (
@@ -16,12 +17,12 @@ from .engine.models import (
     Event,
 )
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "battle_sim.db"
+DEFAULT_DB_PATH = os.environ.get("BATTLE_SIM_DB") or Path(__file__).resolve().parent.parent / "battle_sim.db"
 
 BUILTIN_CREATURES_DATA = [
     {
         "id": "ember_fox",
-        "name": "Ember Fox",
+        "name": "Mario",
         "type": "fire",
         "hp": 120,
         "attack": 45,
@@ -32,7 +33,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "flame_salamander",
-        "name": "Flame Salamander",
+        "name": "Charizard",
         "type": "fire",
         "hp": 160,
         "attack": 52,
@@ -43,7 +44,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "bubble_toad",
-        "name": "Bubble Toad",
+        "name": "Yoshi",
         "type": "water",
         "hp": 140,
         "attack": 38,
@@ -54,7 +55,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "stream_turtle",
-        "name": "Stream Turtle",
+        "name": "Blastoise",
         "type": "water",
         "hp": 180,
         "attack": 35,
@@ -65,7 +66,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "moss_shroom",
-        "name": "Moss Shroom",
+        "name": "Luigi",
         "type": "grass",
         "hp": 150,
         "attack": 36,
@@ -76,7 +77,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "bramble_hound",
-        "name": "Bramble Hound",
+        "name": "Venusaur",
         "type": "grass",
         "hp": 130,
         "attack": 44,
@@ -87,7 +88,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "volt_hedgehog",
-        "name": "Volt Hedgehog",
+        "name": "Pikachu",
         "type": "electric",
         "hp": 110,
         "attack": 48,
@@ -98,7 +99,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "spark_finch",
-        "name": "Spark Finch",
+        "name": "Raichu",
         "type": "electric",
         "hp": 105,
         "attack": 42,
@@ -109,7 +110,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "crag_golem",
-        "name": "Crag Golem",
+        "name": "Onix",
         "type": "stone",
         "hp": 210,
         "attack": 46,
@@ -120,7 +121,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "pebble_armadillo",
-        "name": "Pebble Armadillo",
+        "name": "Graveler",
         "type": "stone",
         "hp": 170,
         "attack": 38,
@@ -132,7 +133,7 @@ BUILTIN_CREATURES_DATA = [
     # Enemy boss & minion creatures
     {
         "id": "pyro_tyrant",
-        "name": "Pyro Tyrant",
+        "name": "Bowser",
         "type": "fire",
         "hp": 280,
         "attack": 55,
@@ -143,7 +144,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "thorn_biter",
-        "name": "Thorn Biter",
+        "name": "Piranha Plant",
         "type": "grass",
         "hp": 120,
         "attack": 42,
@@ -154,7 +155,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "pipe_lurker",
-        "name": "Pipe Lurker",
+        "name": "Koopa Troopa",
         "type": "water",
         "hp": 130,
         "attack": 40,
@@ -165,7 +166,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "iron_spikeling",
-        "name": "Iron Spikeling",
+        "name": "Goomba",
         "type": "stone",
         "hp": 140,
         "attack": 44,
@@ -176,7 +177,7 @@ BUILTIN_CREATURES_DATA = [
     },
     {
         "id": "thunder_wasp",
-        "name": "Thunder Wasp",
+        "name": "Electabuzz",
         "type": "electric",
         "hp": 115,
         "attack": 46,
@@ -204,12 +205,17 @@ class Storage:
         self.db_path = str(db_path or DEFAULT_DB_PATH)
         self.init_db()
 
-    def get_conn(self) -> sqlite3.Connection:
+    @contextmanager
+    def get_conn(self):
         conn = sqlite3.connect(self.db_path, timeout=20.0)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
-        return conn
+        try:
+            conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def init_db(self) -> None:
         os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
@@ -332,6 +338,10 @@ class Storage:
             if "chosen_action" not in cols:
                 conn.execute("ALTER TABLE battle_events ADD COLUMN chosen_action TEXT")
 
+        with self.get_conn() as conn:
+            columns = {r[1] for r in conn.execute("PRAGMA table_info(battles)")}
+            if "metadata_json" not in columns:
+                conn.execute("ALTER TABLE battles ADD COLUMN metadata_json TEXT DEFAULT '{}'")
         self._seed_builtins()
 
     def _seed_builtins(self) -> None:
@@ -577,6 +587,8 @@ class Storage:
                     upload_id,
                 ),
             )
+            conn.execute("UPDATE battles SET metadata_json = ? WHERE battle_id = ?",
+                         (json.dumps(b.metadata), b.battle_id))
             # Delete old events if replacing
             conn.execute("DELETE FROM battle_events WHERE battle_id = ?", (b.battle_id,))
             for ev in b.events:
@@ -672,6 +684,7 @@ class Storage:
                 source=r["source"],
                 events=events,
                 created_at=r["created_at"],
+                metadata=json.loads(r["metadata_json"] or "{}"),
             )
 
     def get_battles(
@@ -681,7 +694,7 @@ class Storage:
         include_events: bool = False,
     ) -> List[BattleRecord]:
         with self.get_conn() as conn:
-            query = "SELECT * FROM battles WHERE 1=1"
+            query = "SELECT * FROM battles WHERE source != 'preview'"
             params: List[Any] = []
             if scenario_id:
                 query += " AND scenario_id = ?"
@@ -752,6 +765,7 @@ class Storage:
                         source=r["source"],
                         events=events,
                         created_at=r["created_at"],
+                        metadata=json.loads(r["metadata_json"] or "{}"),
                     )
                 )
             return results

@@ -1,4 +1,4 @@
-"""Prescriptive analytics: options comparisons and tactical state-based recommendations.
+"""Prescriptive analytics: pre-battle option comparisons and feasible recommendations.
 
 Pure calculation functions returning Pydantic models.
 """
@@ -6,7 +6,7 @@ Pure calculation functions returning Pydantic models.
 from typing import Dict, List, Optional, Any
 from app.engine.models import Scenario, Creature
 from app.engine.tick import TickEngine
-from .predictive import compute_confidence_interval, predict_win_rate
+from .predictive import compute_confidence_interval
 from .models import (
     PlanCompareResultModel,
     RecommendedActionModel,
@@ -35,9 +35,12 @@ def compare_options(
         opt_team_ids = opt.get("team", [c.id for c in team])
         early_heal_spend = int(opt.get("early_heal_spend", 0))
 
-        opt_team = [cmap[cid] for cid in opt_team_ids if cid in cmap]
-        if not opt_team:
-            opt_team = team
+        if (not 1 <= len(opt_team_ids) <= 4 or len(set(opt_team_ids)) != len(opt_team_ids)
+                or any(cid not in cmap for cid in opt_team_ids)):
+            raise ValueError("Each option needs one to four distinct known creatures")
+        if not 0 <= early_heal_spend <= scenario.starting_coins:
+            raise ValueError("Each option must fit the coin budget")
+        opt_team = [cmap[cid] for cid in opt_team_ids]
 
         wins = 0
         total_coins = 0
@@ -75,7 +78,7 @@ def compare_options(
             )
         )
 
-    results.sort(key=lambda r: r.win_rate, reverse=True)
+    results.sort(key=lambda r: (-r.win_rate, r.early_heal_spend, -r.avg_survivors))
     return results
 
 
@@ -87,108 +90,49 @@ def recommend_action(
     seed_count: int = 50,
 ) -> RecommendationReportModel:
     """
-    Evaluates candidate tactical actions from the current mid-battle state
+    Evaluates affordable pre-battle potion plans with matched trial seeds
     and returns the top three actions with win rate, 95% interval, and an explanation.
     """
-    player_team_ids = state.get("player_team", [])
-    creature_hps = state.get("creature_hps", {})
-    coins = state.get("coins", 20)
-
-    # Base visible player creatures
-    base_allies: List[Creature] = []
-    for cid in player_team_ids:
-        if cid in all_known_creatures:
-            c = all_known_creatures[cid]
-            hp = creature_hps.get(cid, c.hp)
-            if hp > 0:
-                base_allies.append(c.model_copy(update={"hp": hp}))
-
-    # Base visible enemies
-    base_enemies: List[Creature] = []
-    for eid in scenario.enemy_team:
-        if eid in all_known_creatures:
-            e = all_known_creatures[eid]
-            hp = creature_hps.get(eid, e.hp)
-            if hp > 0:
-                base_enemies.append(e.model_copy(update={"hp": hp}))
-
-    evaluated_candidates: List[RecommendedActionModel] = []
-
-    # If no candidates provided, evaluate standard tactical spends
+    if state.get("current_tick", 1) != 1 or state.get("creature_hps"):
+        raise ValueError("Recommendations support pre-battle planning only")
+    ids = state.get("player_team", [])
+    if not ids or len(ids) > 4 or len(set(ids)) != len(ids) or any(cid not in all_known_creatures for cid in ids):
+        raise ValueError("Choose one to four distinct known creatures")
+    coins = state.get("coins", scenario.starting_coins)
+    if not 0 <= coins <= scenario.starting_coins:
+        raise ValueError("Available coins must fit the scenario budget")
+    planned_scenario = scenario.model_copy(update={"starting_resources": {"coins": coins}})
     candidates = candidate_actions or [
-        {"action": "Spend 0 coins (Conserve economy)", "early_heal": 0},
-        {"action": "Spend 5 coins for Emergency Heal", "early_heal": 5},
-        {"action": "Spend 10 coins for Tactical Reinforce", "early_heal": 10},
+        {"action": "Keep coins for combat moves", "early_heal": 0},
+        {"action": "Buy a 20 HP emergency potion", "early_heal": 5},
+        {"action": "Buy a 40 HP emergency potion", "early_heal": 10},
     ]
-
-    for cand in candidates:
-        action_name = cand.get("action", "Action")
-        heal_spend = cand.get("early_heal", 0)
-
-        wins = 0
-        for i in range(seed_count):
-            eng = TickEngine(
-                scenario=scenario,
-                player_creatures=base_allies,
-                enemy_creatures=base_enemies,
-                seed=3000 + i,
-                early_heal_spend=heal_spend,
-            )
-            res = eng.run()
-            if res.outcome == "win":
-                wins += 1
-
-        rate = wins / seed_count
-        ci_half, ci_lower, ci_upper, _ = compute_confidence_interval(wins, seed_count)
-
-        explanation = (
-            f"Expected {round(rate * 100, 1)}% win rate by securing critical allied HP thresholds while retaining coin reserves."
-            if heal_spend > 0
-            else f"Expected {round(rate * 100, 1)}% win rate by hoarding coins for late-stage turn versatility."
-        )
-
-        evaluated_candidates.append(
-            RecommendedActionModel(
-                action=action_name,
-                predicted_win_rate=round(rate, 4),
-                predicted_win_rate_percent=round(rate * 100, 1),
-                confidence_interval_95=round(ci_half * 100, 2),
-                ci_lower=round(ci_lower * 100, 1),
-                ci_upper=round(ci_upper * 100, 1),
-                explanation=explanation,
-            )
-        )
-
-    evaluated_candidates.sort(key=lambda c: c.predicted_win_rate, reverse=True)
-    top_three = evaluated_candidates[:3]
-
-    best = top_three[0]
-    summary_advice = (
-        f"Optimal move: '{best.action}' yields the highest projected win rate of "
-        f"{best.predicted_win_rate_percent}% (±{best.confidence_interval_95}%)."
-    )
-    best_spend = next((c.get("early_heal", 0) for c in candidates if c.get("action") == best.action), 0)
-    legacy_options = [
-        {
-            "spend": next((c.get("early_heal", 0) for c in candidates if c.get("action") == r.action), 0),
-            "reserve_kept": max(0, coins - next((c.get("early_heal", 0) for c in candidates if c.get("action") == r.action), 0)),
-            "win_rate": r.predicted_win_rate,
-            "win_rate_percent": r.predicted_win_rate_percent,
-            "avg_coins_left": round(coins - next((c.get("early_heal", 0) for c in candidates if c.get("action") == r.action), 0), 1),
-        }
-        for r in top_three
-    ]
-
+    options = [{"name": c["action"], "team": ids, "early_heal_spend": c.get("early_heal", 0)}
+               for c in candidates if 0 <= c.get("early_heal", 0) <= coins]
+    if not any(o["early_heal_spend"] == 0 for o in options):
+        options.append({"name": "Keep coins for combat moves", "team": ids, "early_heal_spend": 0})
+    results = compare_options(planned_scenario, [all_known_creatures[cid] for cid in ids], options,
+                              seed_count=seed_count, base_seed=3000,
+                              enemy_creatures=[all_known_creatures[cid] for cid in scenario.enemy_team],
+                              all_creatures_map=all_known_creatures)
+    best = results[0]
+    baseline = next(r for r in results if r.early_heal_spend == 0)
+    advice = (f"Best tested plan: {best.name}. Estimated win rate {best.win_rate_percent}% "
+              f"(95% interval {best.ci_lower}%–{best.ci_upper}%). "
+              "Ties favor lower spending; simulation estimates are not guaranteed outcomes.")
     return RecommendationReportModel(
-        scenario_id=scenario.id,
-        team=player_team_ids,
-        top_recommendations=top_three,
-        summary_advice=summary_advice,
-        best_spend=best_spend,
-        best_win_rate_percent=best.predicted_win_rate_percent,
-        explanation=summary_advice,
-        options=legacy_options,
-    )
+        scenario_id=scenario.id, team=ids, seed_count=seed_count,
+        best_spend=best.early_heal_spend, best_win_rate_percent=best.win_rate_percent,
+        baseline_win_rate_percent=baseline.win_rate_percent,
+        improvement_percentage_points=round(best.win_rate_percent-baseline.win_rate_percent, 1),
+        explanation=advice, summary_advice=advice,
+        top_recommendations=[RecommendedActionModel(
+            action=r.name, predicted_win_rate=r.win_rate, predicted_win_rate_percent=r.win_rate_percent,
+            confidence_interval_95=r.confidence_interval_95, ci_lower=r.ci_lower, ci_upper=r.ci_upper,
+            explanation=f"Costs {r.early_heal_spend} coins. Potion activates once at or below half HP, if still alive.")
+            for r in results[:3]],
+        options=[dict(r.model_dump(), spend=r.early_heal_spend, reserve_kept=coins-r.early_heal_spend)
+                 for r in results])
 
 
 # --- Backward Compatible Wrappers ---
@@ -224,27 +168,7 @@ def recommend_best_actions(
     state = {"player_team": team_ids, "coins": current_coins, "current_tick": 1, "creature_hps": {}}
     report = recommend_action(state, [], scenario, all_c, seed_count=50)
 
-    # Legacy format expected by frontend PlanScreen
-    options = [
-        {
-            "spend": i * 5,
-            "reserve_kept": max(0, current_coins - i * 5),
-            "win_rate": rec.predicted_win_rate,
-            "win_rate_percent": rec.predicted_win_rate_percent,
-            "avg_coins_left": round(current_coins - i * 5, 1),
-        }
-        for i, rec in enumerate(report.top_recommendations)
-    ]
-    best_opt = options[0] if options else {"spend": 0, "win_rate_percent": 50.0, "reserve_kept": 20}
-
-    return {
-        "scenario_id": scenario.id,
-        "team": team_ids,
-        "best_spend": best_opt["spend"],
-        "best_win_rate_percent": best_opt["win_rate_percent"],
-        "explanation": report.summary_advice,
-        "options": options,
-    }
+    return report.model_dump()
 
 
 def audit_scenario_balance(scenario: Scenario, calibrate_with_upload_id: Optional[str] = None) -> Dict[str, Any]:

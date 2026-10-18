@@ -36,7 +36,7 @@ export const Arena: React.FC<ArenaProps> = ({
   // Derive squad states up to currentTick
   const playerHps: Record<string, number> = {};
   const enemyHps: Record<string, number> = {};
-  let currentCoins = scenario?.starting_resources?.coins || 20;
+  let currentCoins = scenario?.starting_resources?.coins ?? 20;
 
   battle.player_team.forEach((cid) => {
     playerHps[cid] = creaturesMap[cid]?.hp || 120;
@@ -52,7 +52,7 @@ export const Arena: React.FC<ArenaProps> = ({
   for (const ev of battle.events) {
     if (ev.tick > currentTick) break;
     if (ev.coin_change) currentCoins += ev.coin_change;
-    if (ev.target) {
+    if (ev.target && ev.event_type !== "decision") {
       if (ev.target in playerHps) playerHps[ev.target] = ev.hp_after;
       if (ev.target in enemyHps) enemyHps[ev.target] = ev.hp_after;
     }

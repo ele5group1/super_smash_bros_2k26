@@ -197,6 +197,14 @@ export const BattleScreen: React.FC = () => {
         </div>
       </div>
 
+      {battle.metadata?.prediction && <Card><CardBody>
+        <h2>Prediction versus outcome</h2>
+        <p>Before this round: {battle.metadata.prediction.win_rate_percent}% estimated win chance
+          (95% interval {battle.metadata.prediction.ci_lower}%–{battle.metadata.prediction.ci_upper}%).
+          Actual result: {battle.outcome}. Potion budget: {battle.metadata.early_heal_spend ?? 0} coins.</p>
+        <p>A single result does not validate a probability. The shared dashboard evaluates accumulated rounds.</p>
+        <Button variant="secondary" onClick={() => navigate("/plan")}>Revise strategy</Button>
+      </CardBody></Card>}
       {/* Main Arena Simulation */}
       <Arena battle={battle} scenario={scenario} creaturesMap={creaturesMap} />
 

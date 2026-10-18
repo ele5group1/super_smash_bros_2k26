@@ -277,6 +277,7 @@ class BattleRecord(BaseModel):
     source: str = "simulated"
     events: List[Event] = Field(default_factory=list)
     created_at: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("survivors", mode="before")
     @classmethod
@@ -287,6 +288,9 @@ class BattleRecord(BaseModel):
 
 
 class BattleCreateRequest(BaseModel):
+    session_kind: Literal["visitor", "preview"] = "visitor"
+    early_heal_spend: int = Field(default=0, ge=0)
+    terminal_id: Optional[str] = Field(default=None, max_length=64)
     scenario_id: str
     player_team: List[str] = Field(..., min_length=1, max_length=4)
     seed: int = 1000
@@ -304,6 +308,7 @@ class CounterfactualRequest(BaseModel):
 
 
 class PlanPredictRequest(BaseModel):
+    early_heal_spend: int = Field(default=0, ge=0)
     scenario_id: str
     team: List[str] = Field(..., min_length=1, max_length=4)
     seed_count: int = Field(default=300, ge=10, le=5000)
@@ -312,19 +317,19 @@ class PlanPredictRequest(BaseModel):
 
 class PlanCompareOption(BaseModel):
     name: str
-    team: List[str]
-    early_heal_spend: int = 0
+    team: List[str] = Field(min_length=1, max_length=4)
+    early_heal_spend: int = Field(default=0, ge=0)
 
 
 class PlanCompareRequest(BaseModel):
     scenario_id: str
-    options: List[PlanCompareOption]
+    options: List[PlanCompareOption] = Field(min_length=1, max_length=20)
     seed_count: int = Field(default=100, ge=10, le=1000)
 
 
 class PlanRecommendRequest(BaseModel):
     scenario_id: str
-    team: List[str]
-    current_tick: int = 10
-    current_coins: int = 20
+    team: List[str] = Field(min_length=1, max_length=4)
+    current_tick: int = Field(default=1, ge=1, le=1)
+    current_coins: int = Field(default=20, ge=0)
     creature_hps: Dict[str, int] = Field(default_factory=dict)

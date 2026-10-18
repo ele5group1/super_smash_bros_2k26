@@ -37,6 +37,7 @@ export const LandingScreen: React.FC = () => {
                 scenario_id: scs[0].id,
                 player_team: ['ember_fox', 'bubble_toad', 'moss_shroom', 'volt_hedgehog'],
                 seed: 42,
+                session_kind: "preview",
                 personality: 'opportunistic',
               });
               const bdata = await api.getBattle(res.battle_id);
@@ -167,6 +168,11 @@ export const LandingScreen: React.FC = () => {
         </div>
       </div>
 
+      <section className="halloween-banner" aria-label="Halloween challenge">
+        <span aria-hidden="true">🎃 👻</span>
+        <div><h2>Luigi's Haunted Pipe Escape</h2><p>Choose a squad. Compare potion plans. Rescue two allies. Learn from every round.</p></div>
+        <Button onClick={() => navigate('/scenarios/haunted_pipes')}>Enter haunted pipes</Button>
+      </section>
       {/* Hero Section */}
       <section
         style={{
@@ -188,13 +194,13 @@ export const LandingScreen: React.FC = () => {
             </span>
           </div>
           <h1 className="text-display" style={{ marginBottom: 'var(--space-4)' }}>
-            Pick Your Squad. Master the Stages. Win the Cup.
+            Halloween Arcade: Escape the Haunted Pipes.
           </h1>
           <p
             className="text-muted text-body"
             style={{ marginBottom: 'var(--space-6)', maxWidth: '520px' }}
           >
-            Draft iconic fighters like Mario, Charizard, Link, and Pikachu. Outsmart warp pipes,
+            Draft Mario, Luigi, Charizard, and Pikachu for a Halloween rescue. Outsmart warp pipes,
             lava geysers, and Bowser boss mechanics in tactical lane skirmishes.
           </p>
 

@@ -33,6 +33,8 @@ class TickEngine:
         early_heal_spend: int = 0,
     ):
         self.scenario = scenario
+        self.initial_players = [c.model_dump(mode="json") for c in player_creatures]
+        self.initial_enemies = [c.model_dump(mode="json") for c in enemy_creatures]
         self.seed = seed
         self.rng = SeededRNG(seed)
         self.personality: Literal["aggressive", "defensive", "opportunistic"] = (
@@ -40,7 +42,10 @@ class TickEngine:
         )
         self.battle_id = battle_id or str(uuid.uuid4())
         self.counterfactual = counterfactual
+        if not 0 <= early_heal_spend <= scenario.starting_coins:
+            raise ValueError("Potion spending must fit the starting coin budget")
         self.early_heal_spend = early_heal_spend
+        self.potion_available = early_heal_spend > 0
         self.boss_phase = 1
 
         # Player and Enemy creature entities
@@ -106,8 +111,8 @@ class TickEngine:
         options_considered: Optional[List[Dict[str, Any]]] = None,
         chosen_action: Optional[str] = None,
     ) -> Event:
-        cb = self.player_coins if coin_before is None else coin_before
-        ca = (cb + coin_change) if coin_after is None else coin_after
+        ca = self.player_coins if coin_after is None else coin_after
+        cb = ca - coin_change if coin_before is None else coin_before
         ev = Event(
             battle_id=self.battle_id,
             tick=tick,
@@ -134,28 +139,10 @@ class TickEngine:
 
     def run(self) -> BattleRecord:
         """Runs the battle until victory, defeat, or max ticks reached."""
-        # Handle early heal spend at start if requested
-        if self.early_heal_spend > 0 and self.player_team:
-            heal_per_creature = self.early_heal_spend * 4
-            heal_target = min(self.player_team, key=lambda p: p["hp"])
-            old_hp = heal_target["hp"]
-            heal_target["hp"] = min(heal_target["max_hp"], heal_target["hp"] + heal_per_creature)
-            self._add_event(
-                tick=1,
-                actor="player",
-                action=f"Early Heal ({self.early_heal_spend} coins spent)",
-                target=heal_target["id"],
-                damage=-heal_per_creature,
-                hp_before=old_hp,
-                hp_after=heal_target["hp"],
-                status_change="healed",
-                coin_change=-self.early_heal_spend,
-                coin_before=self.scenario.starting_coins,
-                coin_after=self.player_coins,
-                event_type="info",
-                lane=heal_target["lane"],
-                tile=heal_target["tile"],
-            )
+        if self.early_heal_spend:
+            self._add_event(tick=1, actor="player", action="Purchase emergency potion",
+                            coin_change=-self.early_heal_spend,
+                            coin_before=self.scenario.starting_coins, coin_after=self.player_coins)
 
         max_ticks = self.scenario.ticks
         current_tick = 1
@@ -164,6 +151,7 @@ class TickEngine:
         while current_tick <= max_ticks:
             # Step 1: Scheduled hazards fire
             self._fire_hazards(current_tick)
+            self._use_emergency_potion(current_tick)
 
             # Check if all player creatures died to hazard
             if not any(p["hp"] > 0 for p in self.player_team):
@@ -202,12 +190,13 @@ class TickEngine:
                     continue
 
                 self._resolve_actor_turn(actor, current_tick)
+                self._use_emergency_potion(current_tick)
 
                 # Check victory/defeat after each creature action
                 if not any(p["hp"] > 0 for p in self.player_team):
                     outcome = "loss"
                     break
-                if not any(e["hp"] > 0 for e in self.enemy_team):
+                if self.scenario.objective.type != "survive_ticks" and self._check_objective_achieved():
                     outcome = "win"
                     break
 
@@ -216,6 +205,7 @@ class TickEngine:
 
             # Step 4: Status effects apply (burn damage, regen)
             self._apply_status_effects(current_tick)
+            self._use_emergency_potion(current_tick)
 
             # Step 5: Deaths resolve
             self._resolve_deaths(current_tick)
@@ -242,23 +232,10 @@ class TickEngine:
             current_tick += 1
 
         if outcome is None:
-            # Reached max ticks: evaluate final objective
-            survivors = sum(1 for p in self.player_team if p["hp"] > 0)
-            if self.scenario.objective.type == "reach_exit":
-                # Must have reached exit (tile >= 7) with >= min_survivors
-                at_exit = sum(1 for p in self.player_team if p["hp"] > 0 and p["tile"] >= 6)
-                outcome = "win" if at_exit >= self.scenario.objective.min_survivors else "loss"
-            elif self.scenario.objective.type == "collect_coins":
-                outcome = "win" if self.player_coins >= self.scenario.objective.target_coins else "loss"
-            elif self.scenario.objective.type == "defeat_boss":
-                target_id = self.scenario.objective.target_boss_id
-                boss = next((e for e in self.enemy_team if e["id"] == target_id), None) if target_id else (
-                    next((e for e in self.enemy_team if "boss" in e["id"] or e["max_hp"] >= 350), None)
-                )
-                boss_dead = boss is None or boss["hp"] <= 0
-                outcome = "win" if boss_dead and survivors >= self.scenario.objective.min_survivors else "loss"
-            else:
-                outcome = "win" if survivors >= self.scenario.objective.min_survivors else "loss"
+            survivors = sum(p["hp"] > 0 for p in self.player_team)
+            achieved = (self.scenario.ticks >= self.scenario.objective.target_tick
+                        and survivors >= self.scenario.objective.min_survivors) if self.scenario.objective.type == "survive_ticks" else self._check_objective_achieved()
+            outcome = "win" if achieved else "loss"
 
         ticks_elapsed = min(current_tick, max_ticks)
         survivors_count = sum(1 for p in self.player_team if p["hp"] > 0)
@@ -268,7 +245,7 @@ class TickEngine:
             battle_id=self.battle_id,
             scenario_id=self.scenario.id,
             seed=self.seed,
-            engine_version="1.0.0",
+            engine_version="1.1.0",
             player_team=[p["id"] for p in self.player_team],
             personality=self.personality,
             outcome=final_outcome,
@@ -277,7 +254,29 @@ class TickEngine:
             coins_left=self.player_coins,
             source="simulated",
             events=self.events,
+            metadata={"initial_hps": {p["id"]: p["max_hp"] for p in self.player_team},
+                      "initial_coins": self.scenario.starting_coins,
+                      "early_heal_spend": self.early_heal_spend,
+                      "scenario": self.scenario.model_dump(mode="json"),
+                      "players": self.initial_players,
+                      "enemies": self.initial_enemies},
         )
+
+    def _use_emergency_potion(self, tick: int) -> None:
+        if not self.potion_available:
+            return
+        injured = [p for p in self.player_team if 0 < p["hp"] <= p["max_hp"] / 2]
+        if not injured:
+            return
+        target = min(injured, key=lambda p: (p["hp"] / p["max_hp"], p["id"]))
+        before = target["hp"]
+        restored = min(target["max_hp"] - before, self.early_heal_spend * 4)
+        target["hp"] += restored
+        self.potion_available = False
+        self._add_event(tick=tick, actor="player", target=target["id"],
+                        action="Emergency potion triggered", damage=-restored,
+                        hp_before=before, hp_after=target["hp"], status_change="healed",
+                        lane=target["lane"], tile=target["tile"])
 
     def _fire_hazards(self, tick: int) -> None:
         """Triggers any scheduled hazards for this tick."""
@@ -429,7 +428,7 @@ class TickEngine:
                 actor=actor["id"],
                 action=f"[Counterfactual] Used Emergency Heal (+{cf.heal_amount} HP)",
                 target=actor["id"],
-                damage=-cf.heal_amount,
+                damage=old_hp - actor["hp"],
                 hp_before=old_hp,
                 hp_after=actor["hp"],
                 status_change="healed",
@@ -466,7 +465,7 @@ class TickEngine:
                 damage=0,
                 hp_before=target["hp"],
                 hp_after=target["hp"],
-                coin_change=-coin_cost if coin_cost > 0 else 0,
+                coin_change=-coin_cost if is_player else 0,
                 lane=actor["lane"],
                 tile=actor["tile"],
             )
@@ -484,7 +483,7 @@ class TickEngine:
                 event_type="move",
                 hp_before=actor["hp"],
                 hp_after=actor["hp"],
-                coin_change=-coin_cost if coin_cost > 0 else 0,
+                coin_change=-coin_cost if is_player else 0,
                 lane=actor["lane"],
                 tile=actor["tile"],
             )
@@ -498,12 +497,12 @@ class TickEngine:
                 actor=actor["id"],
                 action=f"Casted {move.name} on {target['id']}",
                 target=target["id"],
-                damage=-35,
+                damage=old_hp - target["hp"],
                 hp_before=old_hp,
                 hp_after=target["hp"],
                 status_change="healed",
                 event_type="move",
-                coin_change=-coin_cost if coin_cost > 0 else 0,
+                coin_change=-coin_cost if is_player else 0,
                 lane=actor["lane"],
                 tile=actor["tile"],
             )
@@ -539,7 +538,7 @@ class TickEngine:
             hp_after=target["hp"],
             status_change=status_change,
             ko=is_ko,
-            coin_change=-coin_cost if coin_cost > 0 else 0,
+            coin_change=-coin_cost if is_player else 0,
             event_type="move",
             lane=actor["lane"],
             tile=actor["tile"],
@@ -627,6 +626,8 @@ class TickEngine:
     def _check_objective_achieved(self) -> bool:
         """Checks if current state satisfies win condition."""
         obj = self.scenario.objective
+        if sum(p["hp"] > 0 for p in self.player_team) < obj.min_survivors:
+            return False
         if obj.type == "reach_exit":
             at_exit = sum(1 for p in self.player_team if p["hp"] > 0 and p["tile"] >= 7)
             return at_exit >= obj.min_survivors

@@ -18,6 +18,12 @@ export const AnalyticsScreen: React.FC = () => {
   const [lossCauses, setLossCauses] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const [evaluation, setEvaluation] = useState<Awaited<ReturnType<typeof api.getEvaluation>> | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState("");
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => { const timer = setInterval(() => setRefresh(n => n + 1), 10000); return () => clearInterval(timer); }, []);
+
   // Load scenarios
   useEffect(() => {
     api.listScenarios().then(setScenarios).catch(() => {});
@@ -25,28 +31,55 @@ export const AnalyticsScreen: React.FC = () => {
 
   // Fetch team stats & loss causes
   useEffect(() => {
+    let active = true;
     async function fetchAnalytics() {
       setLoading(true);
       try {
-        const [teams, losses] = await Promise.all([
+        const [quality, teams, losses] = await Promise.all([
+          api.getEvaluation(selectedScenario || undefined),
           api.getTeamStats(selectedScenario || undefined, sourceFilter !== 'both' ? sourceFilter : undefined),
           api.getLossCauses(selectedScenario || undefined, sourceFilter !== 'both' ? sourceFilter : undefined),
         ]);
+        if (!active) return;
+        setEvaluation(quality);
+        setLastUpdated(new Date().toLocaleTimeString());
+        setLoadError("");
         setTeamStats(teams);
         setLossCauses(losses);
       } catch (err) {
-        console.error('Failed to load analytics:', err);
+        if (active) setLoadError('Connection interrupted. Retrying every 10 seconds.');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     fetchAnalytics();
-  }, [selectedScenario, sourceFilter]);
+    return () => { active = false; };
+  }, [selectedScenario, sourceFilter, refresh]);
 
-  const maxLossCount = lossCauses.reduce((max, l) => Math.max(max, l.count || l.losses || 1), 1);
+  const maxLossCount = lossCauses.reduce((max, l) => Math.max(max, l.count ?? 0), 1);
 
   return (
     <div className="analytics-screen page-container" style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
+      <Card><CardBody>
+        <h2>Shared arcade control center</h2>
+        <p>Updates every 10 seconds. Last updated: {lastUpdated || "waiting"}.</p>
+        <Button variant="secondary" onClick={() => setRefresh(n => n + 1)}>Refresh now</Button>
+        {loadError && <p role="alert">{loadError}</p>}
+        {evaluation && <>
+          <p>{evaluation.sample_count} recorded playable rounds · Brier score: {evaluation.brier_score === null ? "No evaluated rounds yet" : evaluation.brier_score.toFixed(3)}</p>
+          <p>{evaluation.note} Evaluation includes playable rounds for this scenario, independent of the source filter below.</p>
+          <div style={{ overflowX: "auto" }}><table className="ui-table">
+            <caption>Calibration: saved predictions compared with actual outcomes</caption>
+            <thead><tr><th>Prediction range</th><th>Rounds</th><th>Mean predicted</th><th>Observed wins</th></tr></thead>
+            <tbody>{evaluation.calibration.map(bin => <tr key={bin.range}><td>{bin.range}</td><td>{bin.count}</td><td>{(bin.predicted*100).toFixed(1)}%</td><td>{(bin.observed*100).toFixed(1)}%</td></tr>)}</tbody>
+          </table></div>
+          <h3>Recent sessions across terminals</h3>
+          {evaluation.recent_sessions.map(session => <p key={session.battle_id}>
+            {session.created_at} UTC · {session.terminal_id || "Unlabeled terminal"} · {session.outcome} · Potion: {session.spend} coins
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/battles/${session.battle_id}`)}>Open round</Button>
+          </p>)}
+        </>}
+      </CardBody></Card>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
@@ -153,7 +186,7 @@ export const AnalyticsScreen: React.FC = () => {
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color, #334155)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-                  🛑 Fatal Knockouts & Hazard Triggers
+                  🛑 Observed Loss Factors
                 </h3>
                 <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                   {lossCauses.length} categories logged
@@ -169,7 +202,7 @@ export const AnalyticsScreen: React.FC = () => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {lossCauses.map((cause, idx) => {
-                    const count = cause.count || cause.losses || 1;
+                    const count = cause.count ?? 0;
                     const pct = Math.round((count / maxLossCount) * 100);
                     return (
                       <div
@@ -181,7 +214,7 @@ export const AnalyticsScreen: React.FC = () => {
                           border: '1px solid rgba(255, 255, 255, 0.05)',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span
                               style={{
@@ -199,8 +232,8 @@ export const AnalyticsScreen: React.FC = () => {
                             >
                               {idx + 1}
                             </span>
-                            <span style={{ fontWeight: 700, fontSize: '14px', color: '#f8fafc' }}>
-                              {cause.cause || cause.reason || 'Elimination by hazard/damage'}
+                            <span style={{ fontWeight: 700, fontSize: '14px', color: '#f8fafc', overflowWrap: 'anywhere' }}>
+                              {(cause.cause || 'Unclassified').replaceAll('_', ' ')}
                             </span>
                           </div>
                           <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
@@ -227,10 +260,10 @@ export const AnalyticsScreen: React.FC = () => {
                           />
                         </div>
 
-                        {cause.recommendation && (
+                        {cause.description && (
                           <div style={{ marginTop: '8px', fontSize: '12px', color: '#cbd5e1', display: 'flex', gap: '6px' }}>
-                            <span style={{ color: '#f59e0b' }}>💡 Advice:</span>
-                            <span>{cause.recommendation}</span>
+                            <span style={{ color: '#f59e0b' }}>Evidence:</span>
+                            <span>{cause.description}</span>
                           </div>
                         )}
                       </div>
@@ -302,7 +335,7 @@ export const AnalyticsScreen: React.FC = () => {
                               </span>
                             </div>
                           </td>
-                          <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>{t.battles || t.total_runs || 0}</td>
+                          <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>{t.sample_count ?? 0}</td>
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span
@@ -325,7 +358,7 @@ export const AnalyticsScreen: React.FC = () => {
                             </div>
                           </td>
                           <td style={{ padding: '12px 16px', color: '#94a3b8' }}>
-                            {t.avg_ticks ? Math.round(t.avg_ticks) : '—'}
+                            {t.avg_ticks_to_victory !== undefined ? Math.round(t.avg_ticks_to_victory) : '—'}
                           </td>
                           <td style={{ padding: '12px 16px', color: '#f59e0b', fontWeight: 600 }}>
                             {t.avg_coins_left !== undefined ? `🪙 ${Math.round(t.avg_coins_left)}` : '—'}

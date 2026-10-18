@@ -19,7 +19,7 @@ export const CauseList: React.FC<CauseListProps> = ({
       <div className="ui-card" style={{ padding: "var(--space-4)" }}>
         <div style={{ color: "var(--color-success)", fontWeight: "bold", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
           <span>✓</span>
-          <span>Victory achieved: Squad sustained zero critical defeat points.</span>
+          <span>Victory achieved. Review damage and casualties in the battle summary.</span>
         </div>
       </div>
     );
@@ -30,7 +30,7 @@ export const CauseList: React.FC<CauseListProps> = ({
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
         <span style={{ fontSize: "1.25rem" }}>🔍</span>
         <h3 className="text-h3">
-          Defeat Root-Cause Diagnostic
+          Possible Contributors to Defeat
         </h3>
       </div>
 
@@ -96,13 +96,13 @@ export const CauseList: React.FC<CauseListProps> = ({
             </div>
 
             <div style={{ display: "flex", gap: "var(--space-2)" }}>
-              {onCounterfactual && (
+              {onCounterfactual && pt.actor && (
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCounterfactual(pt.tick, "ember_fox");
+                    onCounterfactual(pt.tick, pt.actor!);
                   }}
                 >
                   ⚡ Try a Change

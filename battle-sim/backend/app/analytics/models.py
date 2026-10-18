@@ -69,12 +69,14 @@ class HPTimelineModel(BaseModel):
 class PositionHeatmapCellModel(BaseModel):
     lane: int
     tile: int
-    time_spent: int = 0
+    time_spent: int = 0  # Legacy alias: event count, not duration
+    event_count: int = 0
     kos: int = 0
     damage: int = 0
 
 
 class PositionHeatmapModel(BaseModel):
+    metric: str = "Logged event count (not elapsed occupancy)"
     lanes: int = 3
     tiles: int = 8
     grid: List[List[PositionHeatmapCellModel]]
@@ -274,6 +276,9 @@ class RecommendationReportModel(BaseModel):
     team: List[str]
     top_recommendations: List[RecommendedActionModel] = Field(default_factory=list)
     summary_advice: str
+    seed_count: int = 50
+    baseline_win_rate_percent: float = 0
+    improvement_percentage_points: float = 0
     best_spend: Optional[int] = 0
     best_win_rate_percent: Optional[float] = 0.0
     explanation: Optional[str] = ""

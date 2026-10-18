@@ -1,7 +1,7 @@
 """Battle replay verification and event log match checks."""
 
 from typing import Dict, Any
-from app.engine.models import BattleRecord
+from app.engine.models import BattleRecord, Scenario, Creature
 from app.engine.tick import TickEngine
 from app.storage import db
 
@@ -59,6 +59,10 @@ def verify_battle_replay(battle: BattleRecord) -> Dict[str, Any]:
             }
         enemy_creatures.append(c)
 
+    if battle.metadata.get("scenario"):
+        scenario = Scenario(**battle.metadata["scenario"])
+        player_creatures = [Creature(**c) for c in battle.metadata["players"]]
+        enemy_creatures = [Creature(**c) for c in battle.metadata["enemies"]]
     # Replay through engine
     engine = TickEngine(
         scenario=scenario,
@@ -66,6 +70,7 @@ def verify_battle_replay(battle: BattleRecord) -> Dict[str, Any]:
         enemy_creatures=enemy_creatures,
         seed=battle.seed,
         personality=battle.personality,
+        early_heal_spend=battle.metadata.get("early_heal_spend", 0),
     )
     sim_battle = engine.run()
 

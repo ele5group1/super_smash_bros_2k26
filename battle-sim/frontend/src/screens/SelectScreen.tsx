@@ -23,7 +23,16 @@ export const SelectScreen: React.FC = () => {
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [activeCreatureForDrawer, setActiveCreatureForDrawer] = useState<Creature | null>(null);
 
-  const [seed] = useState<number>(1000);
+  const [seed] = useState<number>(() => 1000000 + Math.floor(Math.random() * 1000000000));
+  const [spend, setSpend] = useState(() => {
+    const saved = Number(localStorage.getItem("last_selected_spend") || 0);
+    return Number.isFinite(saved) && saved >= 0 ? Math.floor(saved) : 0;
+  });
+  const [terminalId] = useState(() => {
+    let id = localStorage.getItem("arcade_terminal_id");
+    if (!id) { id = `terminal-${Math.random().toString(36).slice(2, 10)}`; localStorage.setItem("arcade_terminal_id", id); }
+    return id;
+  });
   const [personality] = useState<string>("opportunistic");
   const [useUploaded, setUseUploaded] = useState<boolean>(true);
 
@@ -98,6 +107,12 @@ export const SelectScreen: React.FC = () => {
     }
   }, [selectedTeam]);
 
+  useEffect(() => {
+    const scenario = scenarios.find(s => s.id === selectedScenarioId);
+    if (scenario && spend > scenario.starting_resources.coins) setSpend(0);
+  }, [scenarios, selectedScenarioId, spend]);
+  useEffect(() => { localStorage.setItem("last_selected_spend", String(spend)); }, [spend]);
+
   // Keyboard shortcut 1-4 for slot selection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -117,24 +132,27 @@ export const SelectScreen: React.FC = () => {
       return;
     }
 
+    let active = true;
+    setPrediction(null);
     setIsPredicting(true);
     const timer = setTimeout(async () => {
       try {
         const pred = await api.predictPlan({
           scenario_id: selectedScenarioId,
           team: selectedTeam,
-          seed_count: 50,
+          seed_count: 100,
+          early_heal_spend: spend,
         });
-        setPrediction(pred);
+        if (active) setPrediction(pred);
       } catch (e) {
         console.warn("Prediction error:", e);
       } finally {
-        setIsPredicting(false);
+        if (active) setIsPredicting(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
-  }, [selectedScenarioId, selectedTeam]);
+    return () => { active = false; clearTimeout(timer); };
+  }, [selectedScenarioId, selectedTeam, spend]);
 
   const handleSelectCreature = (c: Creature) => {
     // If a specific slot is active via keyboard/click, place creature in that slot
@@ -191,6 +209,8 @@ export const SelectScreen: React.FC = () => {
         player_team: selectedTeam,
         seed: seed,
         personality: personality,
+        early_heal_spend: spend,
+        terminal_id: terminalId,
       });
       success("Battle Simulated", `Starting replay #${res.battle_id.slice(0, 8)}`);
       navigate(`/battles/${res.battle_id}`, { state: { result: res } });
@@ -536,6 +556,16 @@ export const SelectScreen: React.FC = () => {
           );
         })()}
 
+        <Card><CardBody>
+          <h2>Choose your strategy</h2>
+          <p>Buy a one-use potion now: it restores up to 4 HP per coin when a living ally reaches half HP. Keep coins instead to fund combat moves.</p>
+          <label>Potion budget <select aria-label="Potion budget" value={spend} onChange={e => setSpend(Number(e.target.value))}>
+            {[...new Set([0, 5, 10, spend])].filter(n => n <= (scenarios.find(s => s.id === selectedScenarioId)?.starting_resources.coins ?? 0)).sort((a,b) => a-b).map(n =>
+              <option key={n} value={n}>{n === 0 ? "No potion" : `${n} coins / up to ${n*4} HP`}</option>)}
+          </select></label>
+          <Button variant="secondary" onClick={() => navigate("/plan")}>Compare strategies</Button>
+          <p>Round: draft → predict → choose → simulate → inspect the report → retry. Terminal: {terminalId}</p>
+        </CardBody></Card>
         {/* Live Debounced Win-Rate Meter */}
         <Card style={{ marginBottom: "var(--space-6)" }}>
           <CardBody>
@@ -560,10 +590,10 @@ export const SelectScreen: React.FC = () => {
                 <div
                   className="winrate-ci-shade"
                   style={{
-                    left: `${Math.max(0, prediction.win_rate - (prediction.confidence_interval_percent || 5) / 100) * 100}%`,
-                    width: `${Math.min(1, ((prediction.confidence_interval_percent || 5) * 2) / 100) * 100}%`,
+                    left: `${prediction.ci_lower}%`,
+                    width: `${prediction.ci_upper - prediction.ci_lower}%`,
                   }}
-                  title={`95% Confidence Interval: ±${prediction.confidence_interval_percent}%`}
+                  title={`95% Confidence Interval: ${prediction.ci_lower}%–${prediction.ci_upper}%`}
                 />
               )}
             </div>
