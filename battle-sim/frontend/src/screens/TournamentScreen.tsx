@@ -119,6 +119,24 @@ export const TournamentScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* Loading and Empty States */}
+      {loading && !report && (
+        <div style={{ textAlign: "center", padding: "var(--space-12) 0", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: "36px", marginBottom: "var(--space-3)" }}>⚔️</div>
+          <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fff" }}>Simulating Championship Tournament...</div>
+          <div style={{ fontSize: "13px", marginTop: "4px" }}>8 squads competing across Quarterfinals, Semifinals, and Grand Finals</div>
+        </div>
+      )}
+
+      {!loading && !report && (
+        <div style={{ textAlign: "center", padding: "var(--space-12) 0", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: "36px", marginBottom: "var(--space-3)" }}>🏆</div>
+          <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fff" }}>No Tournament Data</div>
+          <p style={{ fontSize: "13px", marginTop: "4px", marginBottom: "var(--space-4)" }}>Click below to simulate a championship bracket.</p>
+          <Button variant="primary" onClick={() => handleSimulate(false)}>🎲 Start Tournament</Button>
+        </div>
+      )}
+
       {/* Champion & MVP Showcase */}
       {report && (
         <div
@@ -147,10 +165,10 @@ export const TournamentScreen: React.FC = () => {
                 Tournament Champion
               </div>
               <div style={{ fontSize: "18px", fontWeight: "bold", color: "#fff" }}>
-                {report.champion.name}
+                {report.champion?.name || "Champion"}
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-                Roster: {report.champion.members.join(", ")}
+                Roster: {(report.champion?.members || (report.champion as any)?.creatures || []).map((c: string) => c.replace(/_/g, " ")).join(", ") || "Active Squad"}
               </div>
             </div>
           </div>
@@ -173,10 +191,10 @@ export const TournamentScreen: React.FC = () => {
                 Tournament MVP
               </div>
               <div style={{ fontSize: "18px", fontWeight: "bold", color: "#fff" }}>
-                {report.mvp_creature.name}
+                {typeof report.mvp_creature === "object" && report.mvp_creature ? report.mvp_creature.name : String(report.mvp_creature || "Mario").replace(/_/g, " ")}
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-                ⚔️ {report.mvp_creature.kos} KOs &nbsp;•&nbsp; 💥 {report.mvp_creature.damage} DMG dealt
+                ⚔️ {typeof report.mvp_creature === "object" && report.mvp_creature ? report.mvp_creature.kos : 0} KOs &nbsp;•&nbsp; 💥 {typeof report.mvp_creature === "object" && report.mvp_creature ? report.mvp_creature.damage : 0} DMG dealt
               </div>
             </div>
           </div>
@@ -197,7 +215,7 @@ export const TournamentScreen: React.FC = () => {
                   paddingBottom: "var(--space-2)",
                 }}
               >
-                <h3 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>{round.name}</h3>
+                <h3 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>{round.name || (round as any).round_name || `Round ${rIdx + 1}`}</h3>
                 <Badge variant="neutral" size="sm">
                   {round.matches.length} {round.matches.length === 1 ? "Match" : "Matches"}
                 </Badge>
@@ -205,7 +223,8 @@ export const TournamentScreen: React.FC = () => {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", justifyContent: "space-around", flex: 1 }}>
                 {round.matches.map((m) => {
-                  const isWinnerA = m.winner.id === m.squad_a.id;
+                  const winnerSquad = m.winner || (m as any).winner_squad;
+                  const isWinnerA = winnerSquad ? winnerSquad.id === m.squad_a.id : m.score_a >= m.score_b;
                   const isSelected = selectedMatch?.match_id === m.match_id;
 
                   return (
@@ -241,7 +260,7 @@ export const TournamentScreen: React.FC = () => {
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                            #{m.squad_a.seed}
+                            #{m.squad_a.seed || 1}
                           </span>
                           <span>{m.squad_a.name}</span>
                           {isWinnerA && <span style={{ fontSize: "12px" }}>✓</span>}
@@ -267,7 +286,7 @@ export const TournamentScreen: React.FC = () => {
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                            #{m.squad_b.seed}
+                            #{m.squad_b.seed || 2}
                           </span>
                           <span>{m.squad_b.name}</span>
                           {!isWinnerA && <span style={{ fontSize: "12px" }}>✓</span>}
@@ -287,7 +306,7 @@ export const TournamentScreen: React.FC = () => {
                         }}
                       >
                         <span>{m.ticks_elapsed} ticks</span>
-                        <span>{m.survivors_left} survived</span>
+                        <span>{m.survivors_left ?? (m as any).survivors ?? 0} survived</span>
                       </div>
                     </div>
                   );
@@ -313,20 +332,24 @@ export const TournamentScreen: React.FC = () => {
           >
             <div>
               <h3 style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>
-                {selectedMatch.round} Match Breakdown: {selectedMatch.squad_a.name} vs {selectedMatch.squad_b.name}
+                {(selectedMatch.round || (selectedMatch as any).round_name || "Match")} Breakdown: {selectedMatch.squad_a?.name} vs {selectedMatch.squad_b?.name}
               </h3>
-              <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-                Battle ID: <code>{selectedMatch.battle_id}</code>
-              </p>
+              {selectedMatch.battle_id && (
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+                  Battle ID: <code>{selectedMatch.battle_id}</code>
+                </p>
+              )}
             </div>
 
-            <Link
-              to={`/battles/${selectedMatch.battle_id}`}
-              className="ui-btn ui-btn-primary ui-btn-sm"
-              onClick={() => soundFX.playCoin()}
-            >
-              📺 Watch Full Match Replay
-            </Link>
+            {selectedMatch.battle_id ? (
+              <Link
+                to={`/battles/${selectedMatch.battle_id}`}
+                className="ui-btn ui-btn-primary ui-btn-sm"
+                onClick={() => soundFX.playCoin()}
+              >
+                📺 Watch Full Match Replay
+              </Link>
+            ) : null}
           </div>
 
           <div
@@ -339,7 +362,7 @@ export const TournamentScreen: React.FC = () => {
             <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Winner</div>
               <div style={{ fontSize: "15px", fontWeight: "bold", color: "var(--color-success)" }}>
-                {selectedMatch.winner.name}
+                {(selectedMatch.winner || (selectedMatch as any).winner_squad)?.name || "Winner"}
               </div>
             </div>
 
@@ -353,14 +376,14 @@ export const TournamentScreen: React.FC = () => {
             <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Survivors Left</div>
               <div style={{ fontSize: "15px", fontWeight: "bold" }}>
-                {selectedMatch.survivors_left}
+                {selectedMatch.survivors_left ?? (selectedMatch as any).survivors ?? 0}
               </div>
             </div>
 
             <div style={{ padding: "var(--space-3)", background: "var(--bg-muted)", borderRadius: "var(--radius-sm)" }}>
               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Coins Collected</div>
               <div style={{ fontSize: "15px", fontWeight: "bold" }}>
-                🪙 {selectedMatch.coins_collected}
+                🪙 {selectedMatch.coins_collected ?? 0}
               </div>
             </div>
           </div>

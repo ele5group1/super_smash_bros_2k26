@@ -1,7 +1,7 @@
 """Pydantic models for the battle simulation analytics layer."""
 
 from __future__ import annotations
-from typing import Dict, List, Optional, Any, Literal
+from typing import Dict, List, Optional, Any, Literal, Union
 from pydantic import BaseModel, Field
 
 
@@ -357,26 +357,43 @@ class JobStatusModel(BaseModel):
 class TournamentSquadModel(BaseModel):
     id: str
     name: str
-    creatures: List[str]
+    creatures: List[str] = Field(default_factory=list)
+    members: List[str] = Field(default_factory=list)
+    seed: int = 1
+    color: str = "#6366f1"
 
 
 class TournamentMatchModel(BaseModel):
     match_id: str
     round_name: str
+    round: str = ""
     squad_a: TournamentSquadModel
     squad_b: TournamentSquadModel
     winner_squad: TournamentSquadModel
+    winner: Optional[TournamentSquadModel] = None
+    loser: Optional[TournamentSquadModel] = None
     score_a: int = 0
     score_b: int = 0
     ticks_elapsed: int = 0
     survivors: int = 0
+    survivors_left: int = 0
+    coins_collected: int = 0
+    battle_id: str = ""
     summary: str = ""
 
 
 class TournamentRoundModel(BaseModel):
     round_index: int
     round_name: str
-    matches: List[TournamentMatchModel]
+    name: str = ""
+    matches: List[TournamentMatchModel] = Field(default_factory=list)
+
+
+class TournamentMVPModel(BaseModel):
+    id: str = "mario"
+    name: str = "Mario"
+    kos: int = 0
+    damage: int = 0
 
 
 class TournamentReportModel(BaseModel):
@@ -385,7 +402,8 @@ class TournamentReportModel(BaseModel):
     scenario_name: str
     champion: TournamentSquadModel
     runner_up: Optional[TournamentSquadModel] = None
-    mvp_creature: str = "mario"
+    mvp_creature: Union[TournamentMVPModel, str] = Field(default_factory=TournamentMVPModel)
+    squads: List[TournamentSquadModel] = Field(default_factory=list)
     total_matches: int = 7
     rounds: List[TournamentRoundModel] = Field(default_factory=list)
 

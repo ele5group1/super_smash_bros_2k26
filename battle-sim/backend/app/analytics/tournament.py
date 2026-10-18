@@ -9,6 +9,7 @@ from .models import (
     TournamentMatchModel,
     TournamentRoundModel,
     TournamentReportModel,
+    TournamentMVPModel,
 )
 
 DEFAULT_TOURNAMENT_SQUADS = [
@@ -42,19 +43,24 @@ def simulate_tournament(
         # Fallback if fewer than 8 squads provided
         squad_defs.append(DEFAULT_TOURNAMENT_SQUADS[len(squad_defs) % len(DEFAULT_TOURNAMENT_SQUADS)])
 
+    colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"]
     squads: List[TournamentSquadModel] = [
         TournamentSquadModel(
             id=s["id"],
             name=s["name"],
             creatures=[str(c) for c in s["creatures"]],
+            members=[str(c) for c in s["creatures"]],
+            seed=idx + 1,
+            color=colors[idx % len(colors)],
         )
-        for s in squad_defs
+        for idx, s in enumerate(squad_defs)
     ]
 
     rounds: List[TournamentRoundModel] = []
     current_pool = list(squads)
     match_counter = 1
     creature_ko_counts: Dict[str, int] = {}
+    creature_damage_counts: Dict[str, int] = {}
     runner_up: Optional[TournamentSquadModel] = None
 
     round_names = ["Quarterfinals", "Semifinals", "Grand Finals"]
@@ -99,10 +105,14 @@ def simulate_tournament(
             if r_idx == len(round_names) - 1:
                 runner_up = loser
 
-            # Count KOs for MVP tracking
+            # Count KOs and damage for MVP tracking
             for ev in result.events:
-                if ev.ko and ev.actor:
-                    creature_ko_counts[ev.actor] = creature_ko_counts.get(ev.actor, 0) + 1
+                if ev.actor:
+                    if ev.ko:
+                        creature_ko_counts[ev.actor] = creature_ko_counts.get(ev.actor, 0) + 1
+                    damage_val = getattr(ev, "damage", 0)
+                    if damage_val:
+                        creature_damage_counts[ev.actor] = creature_damage_counts.get(ev.actor, 0) + damage_val
 
             score_a = sum(1 for ev in result.events if ev.target in squad_b.creatures and ev.ko)
             score_b = sum(1 for ev in result.events if ev.target in squad_a.creatures and ev.ko)
@@ -115,13 +125,19 @@ def simulate_tournament(
             match_model = TournamentMatchModel(
                 match_id=f"match_r{r_idx+1}_{i//2+1}",
                 round_name=r_name,
+                round=r_name,
                 squad_a=squad_a,
                 squad_b=squad_b,
                 winner_squad=winner,
+                winner=winner,
+                loser=loser,
                 score_a=score_a,
                 score_b=score_b,
                 ticks_elapsed=result.ticks_elapsed,
                 survivors=result.survivors,
+                survivors_left=result.survivors,
+                coins_collected=result.coins_left,
+                battle_id=f"tourn_{uuid.uuid4().hex[:8]}",
                 summary=summary,
             )
             matches.append(match_model)
@@ -131,13 +147,23 @@ def simulate_tournament(
             TournamentRoundModel(
                 round_index=r_idx + 1,
                 round_name=r_name,
+                name=r_name,
                 matches=matches,
             )
         )
         current_pool = next_pool
 
     champion = current_pool[0]
-    mvp = max(creature_ko_counts.items(), key=lambda kv: kv[1])[0] if creature_ko_counts else "mario"
+    mvp_id = max(creature_ko_counts.items(), key=lambda kv: kv[1])[0] if creature_ko_counts else "mario"
+    from app.storage import db
+    mvp_creature_obj = cmap.get(mvp_id) or db.get_creature(mvp_id)
+    mvp_name = mvp_creature_obj.name if mvp_creature_obj else mvp_id.replace("_", " ").title()
+    mvp_model = TournamentMVPModel(
+        id=mvp_id,
+        name=mvp_name,
+        kos=creature_ko_counts.get(mvp_id, 0),
+        damage=creature_damage_counts.get(mvp_id, 0),
+    )
 
     return TournamentReportModel(
         tournament_id=f"tourn_{uuid.uuid4().hex[:8]}",
@@ -145,7 +171,8 @@ def simulate_tournament(
         scenario_name=scenario.name,
         champion=champion,
         runner_up=runner_up,
-        mvp_creature=mvp,
+        mvp_creature=mvp_model,
+        squads=squads,
         total_matches=len([m for r in rounds for m in r.matches]),
         rounds=rounds,
     )
