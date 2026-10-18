@@ -365,7 +365,7 @@ class Storage:
                         c["hp"],
                         c["attack"],
                         c["speed"],
-                        ";".join(str(m) for m in c["moves"]) if isinstance(c["moves"], list) else str(c["moves"]),
+                        ";".join(c["moves"]) if isinstance(c["moves"], list) else str(c["moves"]),
                         c["source"],
                         c.get("avatar"),
                     ),

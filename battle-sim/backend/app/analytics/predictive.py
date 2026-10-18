@@ -62,7 +62,7 @@ def predict_win_rate(
     include_mismatched: bool = False,
     mismatched_battle_ids: Optional[set] = None,
     early_heal_spend: int = 0,
-    personality: str = "opportunistic",
+    personality: Literal["aggressive", "defensive", "opportunistic"] = "opportunistic",
 ) -> WinRatePredictionModel:
     """
     Runs seed_count deterministic battles with seeds base_seed + i.
