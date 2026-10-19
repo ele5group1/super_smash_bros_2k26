@@ -21,6 +21,8 @@ Open `http://localhost:8000`. Other booth devices use the server laptop’s LAN 
 
 ## Documentation and verification
 
+- [Chapter 4–6 alignment and training](docs/lesson_analytics_alignment.md): lesson mappings, trained models, evaluation, and decision objectives.
+
 - [Arcade operation guide](docs/arcade_operation_guide.md): rules, Chapters 1–6, analytics methods, three-device setup, recovery, submission evidence, and limitations.
 - [Synthetic prediction validation](docs/predictive_validation.json): separate forecasting and held-out seeds; not visitor evidence.
 - [Original audit](docs/assignment_readiness_audit_2026-10-18.md): findings before these changes.

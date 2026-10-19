@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LessonAnalytics } from "../components/LessonAnalytics";
 import { api, ScenarioSummary } from '../api';
 import { CreatureAvatar } from '../components/CreatureCard';
 import { Card, CardBody } from '../components/ui/Card';
@@ -80,6 +81,7 @@ export const AnalyticsScreen: React.FC = () => {
           </p>)}
         </>}
       </CardBody></Card>
+      <LessonAnalytics scenarioId={selectedScenario} source={sourceFilter} refresh={refresh} />
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>

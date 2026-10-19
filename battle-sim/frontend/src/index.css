@@ -1084,3 +1084,8 @@ h3, .text-h3 {
 .halloween-banner > span { font-size:2.5rem; }
 .halloween-banner > div { flex:1; min-width:180px; }
 .halloween-banner h2 { color:#fed7aa; }
+
+.lesson-table { overflow-x: auto; max-width: 100%; margin: 1rem 0; }
+.lesson-table th, .lesson-table td { padding: .6rem; text-align: left; }
+[aria-label="Course analytics"] .ui-card { margin-bottom: 1.5rem; }
+[aria-label="Course analytics"] p { margin: .6rem 0; overflow-wrap: anywhere; }

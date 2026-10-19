@@ -8,7 +8,11 @@ test("strategy applies to a recorded round and shared analytics renders", async 
   await page.getByRole("button", { name: "Compare strategies", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Strategy Lab" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Apply recommendation" })).toBeVisible();
+  await page.getByLabel("Decision objective").selectOption("balanced");
+  await page.getByLabel("Minimum coin reserve").fill("10");
+  await expect(page.getByRole("button", { name: "Apply recommendation" })).toBeVisible();
   const potionRow = page.getByRole("row").filter({ hasText: "20 HP emergency potion" });
+  await page.getByRole("heading", { name: "Recommended plan" }).locator("..").screenshot({ path: test.info().outputPath("decision-model.png") });
   await potionRow.getByRole("button", { name: "Use plan" }).click();
   await expect(page.getByLabel("Potion budget")).toHaveValue("5");
   await page.locator("#launch-battle-btn").click();
@@ -17,6 +21,9 @@ test("strategy applies to a recorded round and shared analytics renders", async 
   const battleId = page.url().split("/").pop();
   const record = await (await page.request.get(`/api/battles/${battleId}`)).json();
   expect(record.battle.metadata.early_heal_spend).toBe(5);
+  expect(record.battle.metadata.planning_objective).toBe("balanced");
+  expect(record.battle.metadata.minimum_initial_reserve).toBe(10);
+  expect(record.battle.metadata.learned_prediction.available).toBe(true);
   expect(record.battle.metadata.terminal_id).toMatch(/^terminal-/);
   await page.locator("#open-report-btn").click();
   await expect(page).toHaveURL(/\/report\//);
@@ -24,6 +31,11 @@ test("strategy applies to a recorded round and shared analytics renders", async 
   await expect(page.getByRole("heading", { name: "Shared arcade control center" })).toBeVisible();
   await expect(page.getByText(/Brier score:/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Open round" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trained prediction model" })).toBeVisible();
+  await expect(page.getByText("Logistic regression", { exact: true }).first()).toBeVisible();
+  await page.getByRole("heading", { name: "Trained prediction model" }).locator("..").screenshot({ path: test.info().outputPath("trained-model.png") });
+  await page.getByLabel("Diagnostic comparison").selectOption("team_size");
+  await expect(page.getByRole("heading", { name: /Expected counts/ })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("shared-analytics.png"), fullPage: true });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(2);

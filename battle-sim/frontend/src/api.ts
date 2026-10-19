@@ -238,7 +238,32 @@ export interface DiagnosticAnalytics {
   recommendation?: string;
 }
 
+export interface ModelMetrics {
+  brier: number; f1: number; roc_auc: number | null; log_loss: number;
+  accuracy: number; precision: number; recall: number;
+  confusion_matrix: {tp:number;fp:number;tn:number;fn:number};
+  calibration:Array<{range:string;count:number;predicted:number;observed:number}>;
+  average_precision:number;balanced_accuracy:number;
+}
+export interface LessonAnalyticsReport {
+  exploration: {
+    sample_count:number; input_records:number; duplicates_excluded:number; missing_starting_snapshots:number; unknown_strategy_records:number;
+    window:{from:string|null;to:string|null};
+    summaries:Record<string,{count:number;mean:number|null;median:number|null;q1:number|null;q3:number|null;min:number|null;max:number|null;outlier_count:number}>;
+    cohorts:Array<{group:string;rounds:number;wins:number;win_rate:number}>;
+    association:{rows:string[];observed:number[][];expected:number[][];residuals:number[][];contributions:number[][];chi_square:number|null;degrees_of_freedom:number;nominal_p_value:number|null;cramers_v:number|null;interpretation:string};
+    damage_contribution:Array<{category:string;damage:number;share:number}>;
+    hourly:Array<{hour:string;rounds:number;win_rate:number}>; seasonality:string;next_question:string;limitations:string[];
+  };
+  training:{status:string;message?:string;selected_model:string;data_source:string;target:string;primary_metric:string;prediction_moment:string;split_method:string;
+    split_counts:{training:number;validation:number;test:number};threshold:number;threshold_policy:string;
+    candidates:Array<{model:string;training:ModelMetrics;validation:ModelMetrics}>;
+    test:ModelMetrics;baseline_test:ModelMetrics;global_associations:Array<{feature:string;importance:number}>;limitations:string[]};
+  live_model_evaluation:{sample_count:number;brier:number|null;note:string};
+}
+
 export interface PredictionResult {
+  trained_prediction?: { available:boolean;win_rate_percent?:number;model?:string;note?:string;reason?:string };
   scenario_id: string;
   team: string[];
   seed_count: number;
@@ -346,6 +371,8 @@ export const api = {
   },
 
   createBattle: (data: {
+    planning_objective?: "win_probability" | "balanced" | "survival";
+    minimum_reserve?: number;
     session_kind?: "visitor" | "preview";
     early_heal_spend?: number;
     terminal_id?: string;
@@ -439,16 +466,20 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  recommendPlan: (data: { scenario_id: string; team: string[]; current_coins: number }) =>
+  recommendPlan: (data: { scenario_id: string; team: string[]; current_coins: number; objective?: "win_probability" | "balanced" | "survival"; min_reserve?: number }) =>
     request<{
       scenario_id: string;
       team: string[];
       seed_count: number;
+      decision_model: { utility_formula:string; scope:string; weights_note:string; hard_constraints:{budget:number;minimum_initial_reserve:number} };
+      holdout_comparison: {seed_count:number;mean_utility_change:number;win_change_percentage_points:number;approximate_95_interval:number[];interpretation:string};
+      sensitivity: Array<{objective:string;best_spend:number}>;
       improvement_percentage_points: number;
       best_spend: number;
       best_win_rate_percent: number;
       explanation: string;
       options: Array<{
+        failure_probability:number; survivor_p10:number; objective_value:number;
         spend: number;
         reserve_kept: number;
         win_rate: number;
@@ -490,6 +521,9 @@ export const api = {
     clientCache.heroes = data;
     return data;
   },
+
+  getLessonAnalytics: (scenarioId: string, source: string, dimension: string) =>
+    request<LessonAnalyticsReport>(`/analytics/lessons?${new URLSearchParams({source, dimension, ...(scenarioId ? {scenario_id:scenarioId} : {})})}`),
 
   getEvaluation: (scenarioId?: string) => request<{
     sample_count: number; brier_score: number | null; note: string;

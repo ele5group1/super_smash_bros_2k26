@@ -204,6 +204,7 @@ class CalibrationModel(BaseModel):
 
 
 class WinRatePredictionModel(BaseModel):
+    trained_prediction: Optional[Dict[str, Any]] = None
     scenario_id: str
     team: List[str]
     seed_count: int
@@ -249,6 +250,10 @@ class StatePredictionModel(BaseModel):
 # --- Prescriptive Analytics Models ---
 
 class PlanCompareResultModel(BaseModel):
+    objective_scores: Dict[str, float] = Field(default_factory=dict)
+    objective_value: float = 0
+    failure_probability: float = 0
+    survivor_p10: float = 0
     name: str
     team: List[str]
     early_heal_spend: int = 0
@@ -272,6 +277,9 @@ class RecommendedActionModel(BaseModel):
 
 
 class RecommendationReportModel(BaseModel):
+    decision_model: Dict[str, Any] = Field(default_factory=dict)
+    holdout_comparison: Dict[str, Any] = Field(default_factory=dict)
+    sensitivity: List[Dict[str, Any]] = Field(default_factory=list)
     scenario_id: str
     team: List[str]
     top_recommendations: List[RecommendedActionModel] = Field(default_factory=list)

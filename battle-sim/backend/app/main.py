@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .storage import db
+from .analytics.learned import score_prebattle, model_report
 from .engine.models import (
     Creature,
     Scenario,
@@ -187,6 +188,8 @@ def create_and_run_battle(req: BattleCreateRequest):
         raise HTTPException(status_code=404, detail=f"Scenario '{req.scenario_id}' not found")
 
     validate_plan(scenario, req.player_team, req.early_heal_spend)
+    if req.early_heal_spend + req.minimum_reserve > scenario.starting_coins:
+        raise HTTPException(status_code=422, detail="Plan violates its minimum initial reserve")
     player_creatures = []
     for cid in req.player_team:
         c = db.get_creature(cid)
@@ -216,7 +219,12 @@ def create_and_run_battle(req: BattleCreateRequest):
     forecast = predict_win_rate(scenario, player_creatures, seed_count=100, base_seed=forecast_base,
                                 enemy_creatures=enemy_creatures, early_heal_spend=req.early_heal_spend,
                                 personality=req.personality)
+    learned = score_prebattle(scenario,player_creatures,enemy_creatures,req.early_heal_spend,
+                              req.personality,roster=db.get_all_creatures(source_filter="builtin"))
     record = engine.run()
+    record.metadata["learned_prediction"] = learned
+    record.metadata["planning_objective"] = req.planning_objective
+    record.metadata["minimum_initial_reserve"] = req.minimum_reserve
     record.metadata.update({"visitor_session": req.session_kind == "visitor", "terminal_id": req.terminal_id,
                             "prediction": forecast.model_dump(mode="json")})
     db.save_battle(record, upload_id=None, source="simulated" if req.session_kind == "visitor" else "preview")
@@ -368,6 +376,25 @@ def prediction_evaluation(scenario_id: Optional[str] = None):
                                  "predicted": b.metadata["prediction"]["win_rate"]} for b in records[:20]]}
 
 
+@app.get("/api/analytics/lessons")
+def lesson_analytics(scenario_id: Optional[str] = None,
+                     source: Literal["both", "simulated", "uploaded"] = "simulated",
+                     dimension: Literal["potion", "scenario", "team_size"] = "potion"):
+    from .analytics.lesson_diagnostics import exploration_report
+    records = db.get_battles(scenario_id=scenario_id,
+                             source_filter=None if source == "both" else source, include_events=True)
+    report = model_report()
+    version = report.get("dataset_sha256", "")[:12]
+    evaluated = [b for b in records if b.source == "simulated" and b.metadata.get("visitor_session")
+                 and b.metadata.get("learned_prediction",{}).get("available")
+                 and b.metadata["learned_prediction"].get("model_version") == version]
+    return {"exploration":exploration_report(records,dimension), "training":report,
+            "live_model_evaluation":{"sample_count":len(evaluated),
+                "brier":sum((b.metadata["learned_prediction"]["win_rate"]-int(b.outcome=="win"))**2
+                             for b in evaluated)/len(evaluated) if evaluated else None,
+                "note":"Only forecasts saved before gameplay by this model version; training trials and imported records excluded."}}
+
+
 @app.get("/api/analytics/team-stats", response_model=List[TeamStatsModel])
 def get_aggregate_team_stats(
     scenario_id: Optional[str] = Query(None),
@@ -450,6 +477,8 @@ def predict_plan_outcomes(
                 mismatched_battle_ids=mismatched_ids,
                 early_heal_spend=req.early_heal_spend,
             )
+            res.trained_prediction = score_prebattle(scenario,player_creatures,enemy_creatures,req.early_heal_spend,
+                                                     roster=db.get_all_creatures(source_filter="builtin"))
             set_job_progress(job_id, 1.0, status="completed", result=res.model_dump())
 
         background_tasks.add_task(_predict_task)
@@ -466,6 +495,8 @@ def predict_plan_outcomes(
         mismatched_battle_ids=mismatched_ids,
         early_heal_spend=req.early_heal_spend,
     )
+    pred_res.trained_prediction = score_prebattle(scenario,player_creatures,enemy_creatures,req.early_heal_spend,
+                                                 roster=db.get_all_creatures(source_filter="builtin"))
     return pred_res
 
 
@@ -525,6 +556,8 @@ def recommend_plan_actions(req: PlanRecommendRequest):
     validate_plan(scenario, req.team)
     if req.creature_hps or req.current_coins != scenario.starting_coins:
         raise HTTPException(status_code=422, detail="Pre-battle advice requires scenario starting coins and full HP")
+    if req.min_reserve > req.current_coins:
+        raise HTTPException(status_code=422, detail="Minimum reserve exceeds the starting budget")
     all_c = {c.id: c for c in db.get_all_creatures()}
     state = {
         "player_team": req.team,
@@ -538,6 +571,7 @@ def recommend_plan_actions(req: PlanRecommendRequest):
         scenario=scenario,
         all_known_creatures=all_c,
         seed_count=50,
+        objective=req.objective, min_reserve=req.min_reserve,
     )
 
 

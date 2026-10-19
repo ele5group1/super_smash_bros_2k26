@@ -288,6 +288,8 @@ class BattleRecord(BaseModel):
 
 
 class BattleCreateRequest(BaseModel):
+    planning_objective: Literal["win_probability", "balanced", "survival"] = "win_probability"
+    minimum_reserve: int = Field(default=0, ge=0)
     session_kind: Literal["visitor", "preview"] = "visitor"
     early_heal_spend: int = Field(default=0, ge=0)
     terminal_id: Optional[str] = Field(default=None, max_length=64)
@@ -328,6 +330,8 @@ class PlanCompareRequest(BaseModel):
 
 
 class PlanRecommendRequest(BaseModel):
+    objective: Literal["win_probability", "balanced", "survival"] = "win_probability"
+    min_reserve: int = Field(default=0, ge=0)
     scenario_id: str
     team: List[str] = Field(min_length=1, max_length=4)
     current_tick: int = Field(default=1, ge=1, le=1)

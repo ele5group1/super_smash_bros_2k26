@@ -1,5 +1,7 @@
 # Mario × Pokémon: Halloween Arcade
 
+See [Chapter 4–6 alignment and training](lesson_analytics_alignment.md) for the trained classifier, statistical diagnostics, selectable decision objectives, and evaluation details added from the lessons.
+
 ## Concept and visitor round
 
 Luigi's Haunted Pipe Escape is a squad strategy simulation. Mario and Pokémon allies navigate cursed warp pipes, Piranha ambushes, and pumpkin fire. Choose one to four fighters; the featured escape requires at least two survivors to reach tile 7. Other scenarios have their own objectives.

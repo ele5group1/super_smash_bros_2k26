@@ -24,6 +24,11 @@ export const SelectScreen: React.FC = () => {
   const [activeCreatureForDrawer, setActiveCreatureForDrawer] = useState<Creature | null>(null);
 
   const [seed] = useState<number>(() => 1000000 + Math.floor(Math.random() * 1000000000));
+  const [planningObjective] = useState<"win_probability" | "balanced" | "survival">(() => {
+    const value = localStorage.getItem("planning_objective");
+    return value === "survival" || value === "balanced" ? value : "win_probability";
+  });
+  const [minimumReserve, setMinimumReserve] = useState(() => Math.max(0, Number(localStorage.getItem("minimum_reserve")) || 0));
   const [spend, setSpend] = useState(() => {
     const saved = Number(localStorage.getItem("last_selected_spend") || 0);
     return Number.isFinite(saved) && saved >= 0 ? Math.floor(saved) : 0;
@@ -109,8 +114,11 @@ export const SelectScreen: React.FC = () => {
 
   useEffect(() => {
     const scenario = scenarios.find(s => s.id === selectedScenarioId);
-    if (scenario && spend > scenario.starting_resources.coins) setSpend(0);
-  }, [scenarios, selectedScenarioId, spend]);
+    if (scenario) {
+      if (minimumReserve > scenario.starting_resources.coins) setMinimumReserve(scenario.starting_resources.coins);
+      if (spend + minimumReserve > scenario.starting_resources.coins) setSpend(0);
+    }
+  }, [scenarios, selectedScenarioId, spend, minimumReserve]);
   useEffect(() => { localStorage.setItem("last_selected_spend", String(spend)); }, [spend]);
 
   // Keyboard shortcut 1-4 for slot selection
@@ -211,6 +219,8 @@ export const SelectScreen: React.FC = () => {
         personality: personality,
         early_heal_spend: spend,
         terminal_id: terminalId,
+        planning_objective: planningObjective,
+        minimum_reserve: minimumReserve,
       });
       success("Battle Simulated", `Starting replay #${res.battle_id.slice(0, 8)}`);
       navigate(`/battles/${res.battle_id}`, { state: { result: res } });
@@ -559,8 +569,9 @@ export const SelectScreen: React.FC = () => {
         <Card><CardBody>
           <h2>Choose your strategy</h2>
           <p>Buy a one-use potion now: it restores up to 4 HP per coin when a living ally reaches half HP. Keep coins instead to fund combat moves.</p>
+          <p>Planning objective: {planningObjective.replace(/_/g, " ")} · Minimum initial reserve: {minimumReserve} coins.</p>
           <label>Potion budget <select aria-label="Potion budget" value={spend} onChange={e => setSpend(Number(e.target.value))}>
-            {[...new Set([0, 5, 10, spend])].filter(n => n <= (scenarios.find(s => s.id === selectedScenarioId)?.starting_resources.coins ?? 0)).sort((a,b) => a-b).map(n =>
+            {[...new Set([0, 5, 10, spend])].filter(n => n <= (scenarios.find(s => s.id === selectedScenarioId)?.starting_resources.coins ?? 0)-minimumReserve).sort((a,b) => a-b).map(n =>
               <option key={n} value={n}>{n === 0 ? "No potion" : `${n} coins / up to ${n*4} HP`}</option>)}
           </select></label>
           <Button variant="secondary" onClick={() => navigate("/plan")}>Compare strategies</Button>
@@ -607,6 +618,13 @@ export const SelectScreen: React.FC = () => {
           </CardBody>
         </Card>
 
+        {prediction?.trained_prediction && <Card><CardBody>
+          <h3>Learned prediction</h3>
+          {prediction.trained_prediction.available ? <>
+            <p>{prediction.trained_prediction.model}: {prediction.trained_prediction.win_rate_percent}% win chance.</p>
+            <p>{prediction.trained_prediction.note} This is separate from the simulation estimate above; disagreement is a reason to investigate.</p>
+          </> : <p>{prediction.trained_prediction.reason}</p>}
+        </CardBody></Card>}
         {/* 3. Available Creatures Grid */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
           <h2 className="text-h3">3. Available Creatures ({filteredCreatures.length})</h2>
